@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Task, TaskStatus } from "./types";
+import { Check, Palette } from "lucide-react";
 import { ProgressWidget } from "./components/ProgressWidget";
 import { UserStatusWidget } from "./components/UserStatusWidget";
 import { ToDoListWidget } from "./components/ToDoListWidget";
 import { CalendarWidget } from "./components/CalendarWidget";
 import { AddTaskWidget } from "./components/AddTaskWidget";
 import { TaskModal } from "./components/TaskModal";
+import { THEME_PALETTES, ThemeId } from "./themePalettes";
+import "./theme-overrides.css";
 import {
   type UserState as ApiUserState,
   createTask,
@@ -60,6 +63,11 @@ export default function Dashboard() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTheme, setActiveTheme] = useState<ThemeId>("green");
+  const [showThemePicker, setShowThemePicker] = useState(false);
+
+  const selectedTheme = THEME_PALETTES.find((theme) => theme.id === activeTheme) ?? THEME_PALETTES[1];
+  const themeStyle = selectedTheme.vars as React.CSSProperties;
 
   // Bootstrap data from Django: ensure a user exists, then load tasks.
   useEffect(() => {
@@ -189,10 +197,55 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F7F5] p-6 font-sans text-[#2F3E34]">
+    <div className="themed-dashboard min-h-screen bg-[#F4F7F5] p-6 font-sans text-[#2F3E34]" style={themeStyle}>
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-[#2F3E34]">Schedly</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-[#2F3E34]">Schedly</h1>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowThemePicker((prev) => !prev)}
+                className="flex items-center gap-2 bg-[#E3EFE6] border border-[#BFD8B8] text-[#2F3E34] px-3 py-2 rounded-lg shadow-sm hover:bg-[#F4F7F5] transition-colors"
+                aria-label="Theme"
+                title="Theme"
+              >
+                <Palette size={16} />
+                <span className="text-sm font-medium">Theme</span>
+              </button>
+
+              {showThemePicker && (
+                <div className="absolute top-12 right-0 z-20 w-80 bg-[#F4F7F5] border border-[#BFD8B8] rounded-xl shadow-lg p-3">
+                  <p className="text-xs font-semibold text-[#2F3E34]/70 mb-2">Choose a theme palette</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {THEME_PALETTES.map((theme) => (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTheme(theme.id);
+                          setShowThemePicker(false);
+                        }}
+                        className="relative border border-[#BFD8B8] rounded-lg p-2 text-left hover:bg-[#E3EFE6] transition-colors"
+                        title={`${theme.label}: ${theme.description}`}
+                      >
+                        <span
+                          className="inline-block w-5 h-5 rounded-full border border-black/10"
+                          style={{ backgroundColor: theme.swatch }}
+                        />
+                        <span className="block text-[11px] mt-1 text-[#2F3E34] leading-tight">
+                          {theme.label.split(" ")[0]}
+                        </span>
+                        {activeTheme === theme.id && (
+                          <Check size={12} className="absolute top-1.5 right-1.5 text-[#2F3E34]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
           <p className="text-[#2F3E34]/70 mt-2">
             Manage your tasks and track your daily progress.
           </p>
