@@ -1,8 +1,11 @@
 from ..models import Task, ScheduleState
 from schedlyapp.domain.mappers import map_task_to_data, map_user_state_to_data, map_schedule_request_to_data
 from .compute_schedule_state import compute_schedule_state
+from .detect_constraints import detect_constraints
+from ..agents.conservative import generate
 
 def run_planning_pipeline(schedule_request):
+    
     tasks = Task.objects.filter(
         user=schedule_request.user,
         status__in=['pending', 'delayed', 'not_yet_started', 'in_progress'],
@@ -31,5 +34,9 @@ def run_planning_pipeline(schedule_request):
         fatigue_score=state['fatigue_score'],
         effective_energy=state['effective_energy']
     )
+    
+    constraint = detect_constraints(state)
+    
+    plan = generate(tasks_data, state, constraint)
 
-    return state
+    return constraint

@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1,
+    "user": 101,
+    "title": "Finish Django API",
+    "body": "Complete scheduling endpoint",
+    "remaining_hours": 5.0,
+    "priority_level": "high",
+    "energy_required": "high",
+    "status": "pending",
+    "level": "deep_work",
+    "deadline": "2026-05-10T10:00:00",
+    "created_at": "2026-05-09T12:00:00"
+  },
+  {
+    "id": 2,
+    "user": 101,
+    "title": "Frontend integration",
+    "body": "Connect React frontend",
+    "remaining_hours": 3.0,
+    "priority_level": "medium",
+    "energy_required": "medium",
+    "status": "pending",
+    "level": "normal",
+    "deadline": "2026-05-11T10:00:00",
+    "created_at": "2026-05-09T12:00:00"
+  },
+  {
+    "id": 3,
+    "user": 101,
+    "title": "Documentation",
+    "body": "Write API docs",
+    "remaining_hours": 2.0,
+    "priority_level": "low",
+    "energy_required": "low",
+    "status": "pending",
+    "level": "light",
+    "deadline": "2026-05-14T10:00:00",
+    "created_at": "2026-05-09T12:00:00"
+  }
+]
