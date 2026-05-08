@@ -1,6 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Task, Intensity, TaskStatus } from '../types';
-import { CircleCheck, Circle, Clock, Edit2, Trash2, Check, XCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Task, Intensity, TaskStatus } from "../types";
+import {
+  CircleCheck,
+  Circle,
+  Clock,
+  Edit2,
+  Trash2,
+  Check,
+  XCircle,
+} from "lucide-react";
 
 interface ToDoListWidgetProps {
   tasks: Task[];
@@ -8,21 +16,27 @@ interface ToDoListWidgetProps {
   onDeleteTask: (id: string) => void;
 }
 
-export function ToDoListWidget({ tasks, onUpdateTask, onDeleteTask }: ToDoListWidgetProps) {
-  const [currentDateTime, setCurrentDateTime] = useState('');
+export function ToDoListWidget({
+  tasks,
+  onUpdateTask,
+  onDeleteTask,
+}: ToDoListWidgetProps) {
+  const [currentDateTime, setCurrentDateTime] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Task>>({});
 
   useEffect(() => {
     const updateDateTime = () => {
       const now = new Date();
-      const options: Intl.DateTimeFormatOptions = { 
-        hour: 'numeric', minute: '2-digit', 
-        month: 'short', day: 'numeric' 
+      const options: Intl.DateTimeFormatOptions = {
+        hour: "numeric",
+        minute: "2-digit",
+        month: "short",
+        day: "numeric",
       };
-      setCurrentDateTime(now.toLocaleDateString('en-US', options));
+      setCurrentDateTime(now.toLocaleDateString("en-US", options));
     };
-    
+
     updateDateTime();
     const interval = setInterval(updateDateTime, 60000);
     return () => clearInterval(interval);
@@ -30,17 +44,21 @@ export function ToDoListWidget({ tasks, onUpdateTask, onDeleteTask }: ToDoListWi
 
   const todayDate = new Date();
   const y = todayDate.getFullYear();
-  const m = String(todayDate.getMonth() + 1).padStart(2, '0');
-  const d = String(todayDate.getDate()).padStart(2, '0');
+  const m = String(todayDate.getMonth() + 1).padStart(2, "0");
+  const d = String(todayDate.getDate()).padStart(2, "0");
   const today = `${y}-${m}-${d}`;
-  const todayTasks = tasks.filter(task => task.deadline === today);
+  const todayTasks = tasks.filter((task) => task.deadline === today);
 
   const getIntensityColor = (intensity: string) => {
-    switch(intensity) {
-      case 'Easy': return 'bg-[#BFD8B8] text-[#2F3E34] border-[#7FB77E]';
-      case 'Medium': return 'bg-[#7FB77E] text-white border-[#7FB77E]';
-      case 'Hard': return 'bg-[#2F3E34] text-[#E3EFE6] border-[#2F3E34]';
-      default: return 'bg-[#F4F7F5] text-[#2F3E34] border-[#BFD8B8]';
+    switch (intensity) {
+      case "Easy":
+        return "bg-[#BFD8B8] text-[#2F3E34] border-[#7FB77E]";
+      case "Medium":
+        return "bg-[#7FB77E] text-white border-[#7FB77E]";
+      case "Hard":
+        return "bg-[#2F3E34] text-[#E3EFE6] border-[#2F3E34]";
+      default:
+        return "bg-[#F4F7F5] text-[#2F3E34] border-[#BFD8B8]";
     }
   };
 
@@ -62,7 +80,8 @@ export function ToDoListWidget({ tasks, onUpdateTask, onDeleteTask }: ToDoListWi
   };
 
   const toggleTaskStatus = (task: Task) => {
-    const newStatus: TaskStatus = task.status === 'finished' ? 'pending' : 'finished';
+    const newStatus: TaskStatus =
+      task.status === "finished" ? "pending" : "finished";
     onUpdateTask({ ...task, status: newStatus });
   };
 
@@ -70,7 +89,7 @@ export function ToDoListWidget({ tasks, onUpdateTask, onDeleteTask }: ToDoListWi
     <div className="bg-[#E3EFE6] p-6 rounded-xl shadow-sm border border-[#BFD8B8] h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold text-[#2F3E34] flex items-center gap-2">
-          To Do List 
+          To Do List
           <span className="text-sm font-normal text-[#2F3E34]/70">
             - {currentDateTime}
           </span>
@@ -87,37 +106,54 @@ export function ToDoListWidget({ tasks, onUpdateTask, onDeleteTask }: ToDoListWi
             <p>No tasks for today. You're all caught up!</p>
           </div>
         ) : (
-          todayTasks.map(task => (
-            <div key={task.id} className="p-4 border border-[#BFD8B8] rounded-lg bg-[#F4F7F5] hover:bg-[#E3EFE6] transition-colors group">
+          todayTasks.map((task) => (
+            <div
+              key={task.id}
+              className="p-4 border border-[#BFD8B8] rounded-lg bg-[#F4F7F5] hover:bg-[#E3EFE6] transition-colors group"
+            >
               {editingId === task.id ? (
                 <div className="space-y-3">
-                  <input 
-                    type="text" 
-                    value={editForm.name || ''} 
-                    onChange={e => setEditForm({...editForm, name: e.target.value})}
+                  <input
+                    type="text"
+                    value={editForm.name || ""}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, name: e.target.value })
+                    }
                     className="w-full text-sm font-bold border-b border-[#BFD8B8] focus:border-[#7FB77E] focus:outline-none py-1 bg-transparent text-[#2F3E34]"
                     placeholder="Task Name"
                   />
-                  <textarea 
-                    value={editForm.description || ''} 
-                    onChange={e => setEditForm({...editForm, description: e.target.value})}
+                  <textarea
+                    value={editForm.description || ""}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, description: e.target.value })
+                    }
                     className="w-full text-sm text-[#2F3E34]/80 border border-[#BFD8B8] rounded p-2 focus:border-[#7FB77E] focus:outline-none resize-none bg-[#F4F7F5]"
                     rows={2}
                     placeholder="Description"
                   />
                   <div className="flex gap-2">
-                    <select 
+                    <select
                       value={editForm.intensity}
-                      onChange={e => setEditForm({...editForm, intensity: e.target.value as Intensity})}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          intensity: e.target.value as Intensity,
+                        })
+                      }
                       className="text-xs border border-[#BFD8B8] rounded p-1.5 bg-[#F4F7F5] text-[#2F3E34] outline-none"
                     >
                       <option value="Easy">Easy</option>
                       <option value="Medium">Medium</option>
                       <option value="Hard">Hard</option>
                     </select>
-                    <select 
+                    <select
                       value={editForm.status}
-                      onChange={e => setEditForm({...editForm, status: e.target.value as TaskStatus})}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          status: e.target.value as TaskStatus,
+                        })
+                      }
                       className="text-xs border border-[#BFD8B8] rounded p-1.5 flex-1 bg-[#F4F7F5] text-[#2F3E34] outline-none"
                     >
                       <option value="finished">Finished</option>
@@ -130,18 +166,27 @@ export function ToDoListWidget({ tasks, onUpdateTask, onDeleteTask }: ToDoListWi
                     </select>
                   </div>
                   <div className="flex justify-end gap-2 pt-2">
-                    <button onClick={cancelEdit} className="p-1.5 text-[#2F3E34]/50 hover:bg-[#BFD8B8]/30 rounded">
+                    <button
+                      onClick={cancelEdit}
+                      className="p-1.5 text-[#2F3E34]/50 hover:bg-[#BFD8B8]/30 rounded"
+                    >
                       <XCircle size={18} />
                     </button>
-                    <button onClick={saveEdit} className="p-1.5 text-[#7FB77E] hover:bg-[#E3EFE6] rounded">
+                    <button
+                      onClick={saveEdit}
+                      className="p-1.5 text-[#7FB77E] hover:bg-[#E3EFE6] rounded"
+                    >
                       <Check size={18} />
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-start gap-3">
-                  <button onClick={() => toggleTaskStatus(task)} className="mt-0.5 text-[#2F3E34]/40 hover:text-[#7FB77E] transition-colors">
-                    {task.status === 'finished' ? (
+                  <button
+                    onClick={() => toggleTaskStatus(task)}
+                    className="mt-0.5 text-[#2F3E34]/40 hover:text-[#7FB77E] transition-colors"
+                  >
+                    {task.status === "finished" ? (
                       <CircleCheck className="text-[#7FB77E]" size={20} />
                     ) : (
                       <Circle size={20} />
@@ -149,23 +194,35 @@ export function ToDoListWidget({ tasks, onUpdateTask, onDeleteTask }: ToDoListWi
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
-                      <h4 className={`text-sm font-bold truncate ${task.status === 'finished' ? 'line-through text-[#2F3E34]/40' : 'text-[#2F3E34]'}`}>
+                      <h4
+                        className={`text-sm font-bold truncate ${task.status === "finished" ? "line-through text-[#2F3E34]/40" : "text-[#2F3E34]"}`}
+                      >
                         {task.name}
                       </h4>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => startEdit(task)} className="p-1 text-[#2F3E34]/40 hover:text-[#7FB77E] hover:bg-[#E3EFE6] rounded transition-colors">
+                        <button
+                          onClick={() => startEdit(task)}
+                          className="p-1 text-[#2F3E34]/40 hover:text-[#7FB77E] hover:bg-[#E3EFE6] rounded transition-colors"
+                        >
                           <Edit2 size={14} />
                         </button>
-                        <button onClick={() => onDeleteTask(task.id)} className="p-1 text-[#2F3E34]/40 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                        <button
+                          onClick={() => onDeleteTask(task.id)}
+                          className="p-1 text-[#2F3E34]/40 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                        >
                           <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
                     {task.description && (
-                      <p className="text-xs text-[#2F3E34]/70 mt-1 line-clamp-2">{task.description}</p>
+                      <p className="text-xs text-[#2F3E34]/70 mt-1 line-clamp-2">
+                        {task.description}
+                      </p>
                     )}
                     <div className="flex items-center gap-2 mt-3">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getIntensityColor(task.intensity)}`}>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getIntensityColor(task.intensity)}`}
+                      >
                         {task.intensity}
                       </span>
                       <span className="flex items-center gap-1 text-[11px] font-medium text-[#2F3E34]/70">
