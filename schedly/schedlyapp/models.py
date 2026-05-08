@@ -57,6 +57,7 @@ class Task(models.Model):
         choices=[
             ('pending', 'Pending'),
             ('delayed', 'Delayed'),
+            ('in_progress', 'In Progress'),
             ('finished', 'Finished'),
             ('dropped', 'Dropped'),
             ('cancelled', 'Cancelled'),

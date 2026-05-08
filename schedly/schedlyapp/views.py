@@ -49,20 +49,17 @@ class ScheduleRequestViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         schedule_request = serializer.save()
         
-        print("TYPE:", type(schedule_request))
-        print("DATA:", schedule_request)
-        #print("RESULT:", result)
         
         # call the pipeline
         result = run_planning_pipeline(schedule_request=schedule_request)
         
         # store final decision
-        PlanDecision.objects.create(
-            schedule_request=schedule_request,
-            selected_plan = result['selected_plan'],
-            score = result['score'],
-            metrics = result['metrics']
-        )
+        # PlanDecision.objects.create(
+        #     schedule_request=schedule_request,
+        #     selected_plan = result['selected_plan'],
+        #     score = result['score'],
+        #     metrics = result['metrics']
+        # )
         
         return Response(
             {
