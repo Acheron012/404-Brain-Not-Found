@@ -16,7 +16,16 @@ DEFAULT_HUGGINGFACE_MODEL = "Qwen/Qwen2-7B-Instruct:featherless-ai"
 
 
 def get_llm_provider() -> str:
-    return os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER).strip().lower()
+    configured = os.getenv("LLM_PROVIDER", "").strip().lower()
+    if configured:
+        return configured
+
+    if os.getenv("DEEPSEEK_API_KEY"):
+        return "deepseek"
+    if os.getenv("HUGGINGFACEHUB_API_TOKEN"):
+        return "huggingface"
+
+    return DEFAULT_PROVIDER
 
 
 def get_llm_model() -> str:
@@ -31,7 +40,11 @@ def get_llm_model() -> str:
 def _build_deepseek_llm(temperature: float, max_tokens: int):
     api_key = os.getenv("DEEPSEEK_API_KEY")
     if not api_key:
-        raise ValueError("Missing DEEPSEEK_API_KEY in environment variables")
+        raise ValueError(
+            "Missing DEEPSEEK_API_KEY in environment variables. "
+            "Set DEEPSEEK_API_KEY or configure LLM_PROVIDER=huggingface "
+            "with HUGGINGFACEHUB_API_TOKEN."
+        )
 
     return ChatOpenAI(
         api_key=api_key,
@@ -45,7 +58,11 @@ def _build_deepseek_llm(temperature: float, max_tokens: int):
 def _build_huggingface_llm(temperature: float, max_tokens: int):
     api_key = os.getenv("HUGGINGFACEHUB_API_TOKEN")
     if not api_key:
-        raise ValueError("Missing HUGGINGFACEHUB_API_TOKEN in environment variables")
+        raise ValueError(
+            "Missing HUGGINGFACEHUB_API_TOKEN in environment variables. "
+            "Set HUGGINGFACEHUB_API_TOKEN or configure LLM_PROVIDER=deepseek "
+            "with DEEPSEEK_API_KEY."
+        )
 
     endpoint = HuggingFaceEndpoint(
         model=get_llm_model(),

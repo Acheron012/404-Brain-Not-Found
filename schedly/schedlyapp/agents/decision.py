@@ -6,8 +6,6 @@ from langsmith import traceable
 
 from ..llm import get_chat_llm
 
-
-llm = get_chat_llm(temperature=0.3, max_tokens=512)
 parser = JsonOutputParser()
 
 
@@ -81,6 +79,7 @@ def decide(
     Agent 3 - Final decision maker.
     Reads all 6 simulation results and picks the optimal plan.
     """
+    llm = get_chat_llm(temperature=0.3, max_tokens=512)
     chain = prompt | llm | parser
 
     result = chain.invoke(

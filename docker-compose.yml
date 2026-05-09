@@ -10,10 +10,11 @@ services:
              python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
-      HUGGINGFACEHUB_API_TOKEN: ${HUGGINGFACEHUB_API_TOKEN:-}
     volumes:
       - ./schedly:/app/schedly
     restart: unless-stopped
