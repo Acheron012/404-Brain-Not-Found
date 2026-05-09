@@ -131,16 +131,4 @@ AGENT 2 (Critic) checks grounding rules
 
 ---
 
-## **Validation Success Criteria**
-
-✅ All 3 plan types present (conservative, balanced, aggressive)  
-✅ All task_ids reference existing tasks  
-✅ All compress actions include valid new_hours (0 < new_hours < remaining_hours)  
-✅ Mutations reference existing task_ids  
-✅ No orphaned or phantom mutations  
-✅ Each plan has different action distributions across tasks  
-✅ Critique reasons cite specific metric values  
-
----
-
 *This matrix enables efficient communication of reasoning, debugging of rule triggers, and transparent decision-making across the three-agent planning system.*

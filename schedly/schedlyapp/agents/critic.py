@@ -77,6 +77,22 @@ MUTATION RULES:
 
 ---
 
+COMPRESSION RULE:
+
+When mutating to "compress", compute new_hours using:
+
+new_hours = remaining_hours * compression_factor
+
+Where:
+- compression_factor is reducing 25 percent of effort
+- Lower values = more aggressive compression
+- Higher values = safer compression
+
+Examples:
+- 5h → 3.75h
+
+---
+
 FOR EACH PLAN:
 1. Go through each action one by one
 2. Check if any grounding rule applies using the actual state/constraint values
