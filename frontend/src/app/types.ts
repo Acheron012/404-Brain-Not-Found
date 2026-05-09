@@ -1,9 +1,5 @@
 export type TaskStatus =
   | 'finished'
-<<<<<<< HEAD
-=======
-  | 'pending'
->>>>>>> 266c0c704aa77f8b979c6b2c9c97bbb4a689645e
   | 'in progress'
   | 'delayed'
   | 'cancelled'

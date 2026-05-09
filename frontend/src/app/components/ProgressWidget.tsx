@@ -36,11 +36,7 @@ const buildChartData = (tasks: Task[], timeframe: Timeframe) => {
   >();
 
   tasks.forEach((task) => {
-<<<<<<< HEAD
     const date = new Date(task.deadline);
-=======
-    const date = new Date(task.startDate);
->>>>>>> 266c0c704aa77f8b979c6b2c9c97bbb4a689645e
     if (Number.isNaN(date.getTime())) return;
 
     let key: string;
@@ -91,13 +87,8 @@ export function ProgressWidget({ tasks }: ProgressWidgetProps) {
   const stats = useMemo(() => {
     const counts = {
       finished: 0,
-<<<<<<< HEAD
       "in progress": 0,
       delayed: 0,
-=======
-      pending: 0,
-      "in progress": 0,
->>>>>>> 266c0c704aa77f8b979c6b2c9c97bbb4a689645e
       cancelled: 0,
       dropped: 0,
       missed: 0,
@@ -196,10 +187,6 @@ export function ProgressWidget({ tasks }: ProgressWidgetProps) {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-auto">
         <StatCard label="Finished" value={stats.finished} />
-<<<<<<< HEAD
-=======
-        <StatCard label="Pending" value={stats.pending} />
->>>>>>> 266c0c704aa77f8b979c6b2c9c97bbb4a689645e
         <StatCard label="In Progress" value={stats["in progress"]} />
         <StatCard label="Delayed" value={stats.delayed} />
         <StatCard label="Cancelled" value={stats.cancelled} />

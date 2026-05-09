@@ -87,11 +87,7 @@ export function ToDoListWidget({
 
   const toggleTaskStatus = (task: Task) => {
     const newStatus: TaskStatus =
-<<<<<<< HEAD
       task.status === "finished" ? "in progress" : "finished";
-=======
-      task.status === "finished" ? "not yet started" : "finished";
->>>>>>> 266c0c704aa77f8b979c6b2c9c97bbb4a689645e
     onUpdateTask({ ...task, status: newStatus });
   };
 
@@ -214,15 +210,11 @@ export function ToDoListWidget({
                       className="text-xs border border-[#BFD8B8] rounded p-1.5 flex-1 bg-[#F4F7F5] text-[#2F3E34] outline-none"
                     >
                       <option value="finished">Finished</option>
-<<<<<<< HEAD
                       <option value="in progress">In progress</option>
                       <option value="delayed">Delayed</option>
-=======
-                      <option value="pending">Pending</option>
-                      <option value="in progress">In progress</option>
->>>>>>> 266c0c704aa77f8b979c6b2c9c97bbb4a689645e
                       <option value="cancelled">Cancelled</option>
                       <option value="dropped">Dropped</option>
+                      <option value="missed">Missed</option>
                       <option value="not yet started">Not yet started</option>
                     </select>
                   </div>

@@ -43,7 +43,6 @@ class TaskSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Remaining hours must be non-negative.")
         return value
 
-<<<<<<< HEAD
     def validate_status(self, value):
         """
         Normalize legacy pending tasks into an explicit not-yet-started state.
@@ -51,7 +50,7 @@ class TaskSerializer(serializers.ModelSerializer):
         """
         if value == "pending":
             return "not_yet_started"
-=======
+
     def validate_start_date(self, value):
         """Validate that start_date is present and not after the deadline."""
         deadline = self.initial_data.get("deadline")
@@ -59,7 +58,6 @@ class TaskSerializer(serializers.ModelSerializer):
             parsed_deadline = serializers.DateTimeField().to_internal_value(deadline)
             if value > parsed_deadline:
                 raise serializers.ValidationError("Start date must be before or equal to the deadline.")
->>>>>>> 266c0c704aa77f8b979c6b2c9c97bbb4a689645e
         return value
     
     def validate_deadline(self, value):
