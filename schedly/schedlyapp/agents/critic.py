@@ -23,6 +23,9 @@ supports a real concern.
 AGENT 1 PLANS:
 {agent1_plans}
 
+TASKS:
+{tasks}
+
 SCHEDULE STATE:
 {state}
 
@@ -85,6 +88,18 @@ FOR EACH PLAN:
 3. If a rule fires: mutate and explain with the specific number
 4. If no rule fires: mark the task as unchanged
 5. Write one overall_critique sentence summarizing your verdict on the plan
+6. Return task_reviews covering EVERY task from TASKS, even when unchanged
+
+TASK REVIEW RULES:
+- Each plan must include one task_reviews row for every task in TASKS
+- If Agent 1 leaves a task as "proceed", set changed to false and write a statement
+  explaining why it is safe to leave it unchanged
+- If you mutate a task, task_reviews must reflect the mutated action, changed=true,
+  and the same grounded reasoning as the mutation reason
+- task_reviews should use the final action for that plan:
+  - original plans use Agent 1's action unless you are critiquing it as unchanged
+  - task_reviews still describe the final recommendation for that plan
+- Keep statements concise, task-specific, and grounded in the state/constraints
 
 ---
 
@@ -104,25 +119,43 @@ OUTPUT FORMAT (structure only - use real task ids and real numbers from input):
           "reason": "cite the specific metric that triggered this - e.g. fatigue_score is X"
         }}
       ],
-      "unchanged": [88, 77]
+      "unchanged": [88, 77],
+      "task_reviews": [
+        {{
+          "task_id": 99,
+          "action": "compress",
+          "new_hours": 0.0,
+          "changed": true,
+          "statement": "Because fatigue_score is X and remaining_hours is Y, compress this task to Z hours."
+        }},
+        {{
+          "task_id": 88,
+          "action": "proceed",
+          "changed": false,
+          "statement": "Leave this task unchanged because its workload fits the current capacity."
+        }}
+      ]
     }},
     {{
       "plan_type": "balanced",
       "overall_critique": "one sentence verdict",
       "mutations": [],
-      "unchanged": []
+      "unchanged": [],
+      "task_reviews": []
     }},
     {{
       "plan_type": "aggressive",
       "overall_critique": "one sentence verdict",
       "mutations": [],
-      "unchanged": []
+      "unchanged": [],
+      "task_reviews": []
     }}
   ]
 }}
 
 REMINDER: 99, 88, 77 are placeholders. Use real task_ids from Agent 1's plans.
 new_hours must be a real float less than the task's remaining_hours.
+Every plan must include task_reviews for every task in TASKS.
 mutations can be an empty list if Agent 1's plan is sound for that plan type.
 Return ONLY valid JSON.
 """)
@@ -199,6 +232,29 @@ def _validate_critiques(result: dict, valid_task_ids: set) -> dict:
                     f"[{critique['plan_type']}] task {tid}: compress mutation missing new_hours"
                 )
 
+        review_task_ids = []
+        for review in critique.get("task_reviews", []):
+            tid = review.get("task_id")
+            review_task_ids.append(tid)
+            if tid not in valid_task_ids:
+                issues.append(
+                    f"[{critique['plan_type']}] task review references unknown task_id: {tid}"
+                )
+            if review.get("action") == "compress" and "new_hours" not in review:
+                issues.append(
+                    f"[{critique['plan_type']}] task {tid}: compress review missing new_hours"
+                )
+            if "statement" not in review or not str(review.get("statement", "")).strip():
+                issues.append(
+                    f"[{critique['plan_type']}] task {tid}: review missing statement"
+                )
+
+        missing_reviews = valid_task_ids - set(review_task_ids)
+        if missing_reviews:
+            issues.append(
+                f"[{critique['plan_type']}] missing task_reviews for task_ids: {sorted(missing_reviews)}"
+            )
+
     result["_validation"] = {"ok": len(issues) == 0, "issues": issues}
     return result
 
@@ -228,6 +284,7 @@ def critique(tasks, state, constraints, agent1_output) -> dict:
     result = chain.invoke(
         {
             "agent1_plans": json.dumps(agent1_output.get("plans", []), indent=2),
+            "tasks": json.dumps(tasks, indent=2),
             "state": json.dumps(state, indent=2),
             "constraints": json.dumps(constraints, indent=2),
         }

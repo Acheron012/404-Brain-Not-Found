@@ -17,9 +17,6 @@ import {
 } from "@/lib/endpoints";
 
 interface UserStatusWidgetProps {
-  onAddTask?: (
-    task: Omit<Task, "id" | "scheduleCondition" | "remainingTimeHours">,
-  ) => Promise<void> | void;
   tasks?: Task[];
   initialUserState?: ApiUserState | null;
   onSaveUserState?: (
@@ -28,6 +25,7 @@ interface UserStatusWidgetProps {
       "energy_level" | "fatigue_level" | "sleep_hours"
     >,
   ) => Promise<void> | void;
+  onUpdateTask?: (task: Task) => Promise<void> | void;
 }
 
 interface SuggestedAction {
@@ -54,6 +52,13 @@ interface Agent2Critique {
     reason: string;
   }>;
   unchanged: Array<number | string>;
+  task_reviews?: Array<{
+    task_id: number | string;
+    action: string;
+    new_hours?: number;
+    changed: boolean;
+    statement: string;
+  }>;
 }
 
 interface SimulationResult {
@@ -94,6 +99,27 @@ interface PlanningWorkspaceData {
     plans_simulated: number;
   };
   mathBest?: string;
+  reviewRowsByPlan: Record<
+    string,
+    Array<{
+      task_id: number | string;
+      task_name: string;
+      action: string;
+      new_hours?: number;
+      changed: boolean;
+      statement: string;
+    }>
+  >;
+}
+
+interface TaskReviewRow {
+  taskId: string;
+  task: Task;
+  action: string;
+  newHours?: number;
+  statement: string;
+  apply: boolean;
+  changed: boolean;
 }
 
 const emptyPlanningData: PlanningWorkspaceData = {
@@ -104,6 +130,7 @@ const emptyPlanningData: PlanningWorkspaceData = {
   agent2Critiques: [],
   mutatedPlans: [],
   simulations: [],
+  reviewRowsByPlan: {},
 };
 
 const enumToSliderValue = (
@@ -154,10 +181,10 @@ function MetricBar({
 }
 
 export function UserStatusWidget({
-  onAddTask,
   tasks = [],
   initialUserState,
   onSaveUserState,
+  onUpdateTask,
 }: UserStatusWidgetProps) {
   const [savedHours, setSavedHours] = useState<number>(8);
   const [savedSleep, setSavedSleep] = useState<number>(8);
@@ -171,6 +198,9 @@ export function UserStatusWidget({
 
   const [showPrompt, setShowPrompt] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeTab, setActiveTab] = useState<
+    "recommendation" | "agent1" | "agent2" | "simulation"
+  >("recommendation");
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [suggestionsPhase, setSuggestionsPhase] = useState<
     "idle" | "waiting" | "fetching"
@@ -179,11 +209,11 @@ export function UserStatusWidget({
   const [selectedPlan, setSelectedPlan] = useState<SuggestedPlan | null>(null);
   const [planningData, setPlanningData] =
     useState<PlanningWorkspaceData>(emptyPlanningData);
+  const [taskReviews, setTaskReviews] = useState<TaskReviewRow[]>([]);
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
     "idle",
   );
-  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
 
   const taskLookup = useMemo(
     () =>
@@ -195,10 +225,25 @@ export function UserStatusWidget({
     [tasks],
   );
 
-  const actionToIntensity = (action: string): Task["intensity"] => {
-    if (action === "drop") return "Easy";
-    if (action === "compress") return "Medium";
-    return "Hard";
+  const actionToStatement = (action: string, task: Task, newHours?: number) => {
+    if (action === "compress") {
+      return typeof newHours === "number"
+        ? `Suggest compressing this task from ${task.estimatedHours}h to ${newHours}h to reduce workload while keeping it moving.`
+        : "Suggest compressing this task to reduce workload while keeping it moving.";
+    }
+    if (action === "delay") {
+      return "Suggest delaying this task because the current plan prioritizes other work first.";
+    }
+    if (action === "drop") {
+      return "Suggest dropping this task from the current plan so the user can protect time and energy.";
+    }
+    if (action === "miss") {
+      return "This task is unlikely to happen in the current plan, so it is marked as missed.";
+    }
+    if (action === "outsource") {
+      return "Suggest outsourcing or delegating this task instead of doing it directly.";
+    }
+    return "Leave this task unchanged. No grounded risk was detected for it in this plan.";
   };
 
   useEffect(() => {
@@ -336,6 +381,7 @@ export function UserStatusWidget({
       simulations: debug?.layer4?.all_simulations ?? [],
       benchmark: debug?.layer4?.benchmark,
       mathBest: debug?.layer4?.math_best,
+      reviewRowsByPlan: debug?.reviews ?? {},
     };
   };
 
@@ -384,7 +430,9 @@ export function UserStatusWidget({
 
     setSuggestionsError(null);
     setSelectedPlan(null);
+    setTaskReviews([]);
     setPlanningData(emptyPlanningData);
+    setActiveTab("recommendation");
     setShowSuggestions(true);
     setIsLoadingSuggestions(true);
     setSuggestionsPhase("waiting");
@@ -424,8 +472,76 @@ export function UserStatusWidget({
   };
 
   const handleChoosePlan = (plan: SuggestedPlan) => {
+    const apiReviewRows = planningData.reviewRowsByPlan[plan.plan_type];
+    if (apiReviewRows?.length) {
+      const reviews = apiReviewRows
+        .map((row) => {
+          const taskId = normalizeTaskId(row.task_id);
+          const task = taskLookup[taskId];
+          if (!task) return null;
+
+          return {
+            taskId,
+            task,
+            action: row.action,
+            newHours: row.new_hours,
+            statement: row.statement,
+            apply: row.changed,
+            changed: row.changed,
+          };
+        })
+        .filter((review): review is TaskReviewRow => review !== null)
+        .sort((left, right) =>
+          left.task.startDate.localeCompare(right.task.startDate),
+        );
+
+      setSelectedPlan(plan);
+      setTaskReviews(reviews);
+      setActiveTab("recommendation");
+      return;
+    }
+
+    const critique = planningData.agent2Critiques.find(
+      (entry) =>
+        entry.plan_type === plan.plan_type ||
+        `${entry.plan_type}_mutated` === plan.plan_type,
+    );
+    const mutationMap = new Map(
+      (critique?.mutations ?? []).map((mutation) => [
+        normalizeTaskId(mutation.task_id),
+        mutation,
+      ]),
+    );
+    const actionMap = new Map(
+      plan.actions.map((action) => [normalizeTaskId(action.task_id), action]),
+    );
+
+    const reviews = tasks
+      .map((task) => {
+        const taskId = normalizeTaskId(task.id);
+        const action = actionMap.get(taskId);
+        const mutation = mutationMap.get(taskId);
+        const actionName = action?.action ?? "proceed";
+        const changed = actionName !== "proceed";
+        const statement =
+          mutation?.reason ??
+          actionToStatement(actionName, task, action?.new_hours);
+
+        return {
+          taskId,
+          task,
+          action: actionName,
+          newHours: action?.new_hours,
+          statement,
+          apply: changed,
+          changed,
+        };
+      })
+      .sort((left, right) => left.task.startDate.localeCompare(right.task.startDate));
+
     setSelectedPlan(plan);
-    setShowFinalConfirm(true);
+    setTaskReviews(reviews);
+    setActiveTab("recommendation");
   };
 
   const handleApplyRecommendedPlan = () => {
@@ -435,36 +551,66 @@ export function UserStatusWidget({
     handleChoosePlan(recommendedPlan);
   };
 
-  const handleFinalConfirm = () => {
-    if (onAddTask && selectedPlan) {
-      selectedPlan.actions.forEach((actionItem) => {
-        const mappedTask = taskLookup[normalizeTaskId(actionItem.task_id)];
-        const mappedName =
-          mappedTask?.name ?? `Task ${normalizeTaskId(actionItem.task_id)}`;
-        const hourSuffix =
-          typeof actionItem.new_hours === "number"
-            ? ` | hrs: ${actionItem.new_hours}`
-            : "";
+  const updateReviewApproval = (taskId: string, apply: boolean) => {
+    setTaskReviews((current) =>
+      current.map((review) =>
+        review.taskId === taskId ? { ...review, apply } : review,
+      ),
+    );
+  };
 
-        onAddTask({
-          name: mappedName,
-          description: `Action: ${actionItem.action}${hourSuffix}`,
-          estimatedHours:
-            typeof actionItem.new_hours === "number"
-              ? actionItem.new_hours
-              : mappedTask?.estimatedHours ?? 1,
-          energyRequired: mappedTask?.energyRequired ?? "Medium",
-          startDate: new Date().toISOString().split("T")[0],
-          deadline:
-            mappedTask?.deadline ?? new Date().toISOString().split("T")[0],
-          intensity: actionToIntensity(actionItem.action),
-          status: "not yet started",
-        });
-      });
+  const setAllActionableApprovals = (apply: boolean) => {
+    setTaskReviews((current) =>
+      current.map((review) =>
+        review.changed ? { ...review, apply } : review,
+      ),
+    );
+  };
+
+  const buildUpdatedTask = (review: TaskReviewRow): Task => {
+    const actionNote = `[Plan suggestion] ${review.statement}`;
+    const description = review.task.description
+      ? `${review.task.description}\n${actionNote}`
+      : actionNote;
+
+    if (review.action === "compress") {
+      return {
+        ...review.task,
+        estimatedHours: review.newHours ?? review.task.estimatedHours,
+        description,
+      };
     }
-    setShowFinalConfirm(false);
-    setShowSuggestions(false);
-    setSelectedPlan(null);
+    if (review.action === "delay") {
+      return { ...review.task, status: "delayed", description };
+    }
+    if (review.action === "drop") {
+      return { ...review.task, status: "dropped", description };
+    }
+    if (review.action === "miss") {
+      return { ...review.task, status: "missed", description };
+    }
+    if (review.action === "outsource") {
+      return { ...review.task, description };
+    }
+    return review.task;
+  };
+
+  const handleApplyApprovedTasks = async () => {
+    if (!onUpdateTask || !selectedPlan) return;
+
+    try {
+      const approved = taskReviews.filter((review) => review.changed && review.apply);
+      for (const review of approved) {
+        await onUpdateTask(buildUpdatedTask(review));
+      }
+      setShowSuggestions(false);
+      setSelectedPlan(null);
+      setTaskReviews([]);
+      setSuggestionsError(null);
+    } catch (error) {
+      setSuggestionsError("Could not apply the approved task suggestions.");
+      console.error(error);
+    }
   };
 
   const getEnergyIcon = () => {
@@ -687,7 +833,19 @@ export function UserStatusWidget({
                   ))}
                 </div>
               ) : (
-                <Tabs defaultValue="recommendation" className="w-full">
+                <Tabs
+                  value={activeTab}
+                  onValueChange={(value) =>
+                    setActiveTab(
+                      value as
+                        | "recommendation"
+                        | "agent1"
+                        | "agent2"
+                        | "simulation",
+                    )
+                  }
+                  className="w-full"
+                >
                   <TabsList className="w-full md:w-auto bg-white border border-[#BFD8B8]">
                     <TabsTrigger value="recommendation">Recommendation</TabsTrigger>
                     <TabsTrigger value="agent1">Agent 1</TabsTrigger>
@@ -712,7 +870,7 @@ export function UserStatusWidget({
                               onClick={handleApplyRecommendedPlan}
                               className="text-sm bg-[#7FB77E] text-white font-semibold px-4 py-2 rounded-lg hover:bg-[#68a367] transition-colors"
                             >
-                              Apply Recommended Plan
+                              Review Recommended Plan
                             </button>
                           )}
                         </div>
@@ -783,6 +941,102 @@ export function UserStatusWidget({
                         <div className="text-sm text-[#2F3E34]/80 leading-relaxed">
                           {planningData.decision?.reasoning ?? planningData.topReasoning}
                         </div>
+
+                        {selectedPlan && (
+                          <div className="mt-6 border-t border-[#BFD8B8] pt-5">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                              <div>
+                                <h5 className="text-lg font-bold text-[#2F3E34]">
+                                  Review Tasks For {selectedPlan.plan_type}
+                                </h5>
+                                <p className="text-sm text-[#2F3E34]/70">
+                                  Approve only the task suggestions you want to apply. Unchanged tasks are shown for visibility.
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => setAllActionableApprovals(true)}
+                                  className="text-xs bg-[#E3EFE6] border border-[#BFD8B8] text-[#2F3E34] px-3 py-2 rounded-md hover:bg-white transition-colors"
+                                >
+                                  Approve All Changes
+                                </button>
+                                <button
+                                  onClick={() => setAllActionableApprovals(false)}
+                                  className="text-xs bg-[#F4F7F5] border border-[#BFD8B8] text-[#2F3E34] px-3 py-2 rounded-md hover:bg-white transition-colors"
+                                >
+                                  Clear All
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                              {taskReviews.map((review) => (
+                                <div
+                                  key={review.taskId}
+                                  className="bg-[#F4F7F5] border border-[#BFD8B8] rounded-xl p-4"
+                                >
+                                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <h6 className="text-sm font-bold text-[#2F3E34]">
+                                          {review.task.name}
+                                        </h6>
+                                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white border border-[#BFD8B8] text-[#2F3E34]/75">
+                                          {review.changed ? review.action : "unchanged"}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-[#2F3E34]/70 mt-1">
+                                        {review.statement}
+                                      </p>
+                                      <div className="mt-2 text-[11px] text-[#2F3E34]/60">
+                                        Current: {review.task.status} | Est. {review.task.estimatedHours}h
+                                        {typeof review.newHours === "number"
+                                          ? ` | Suggested: ${review.newHours}h`
+                                          : ""}
+                                      </div>
+                                    </div>
+
+                                    <label className="flex items-center gap-2 text-sm text-[#2F3E34]">
+                                      <input
+                                        type="checkbox"
+                                        checked={review.apply}
+                                        disabled={!review.changed}
+                                        onChange={(event) =>
+                                          updateReviewApproval(
+                                            review.taskId,
+                                            event.target.checked,
+                                          )
+                                        }
+                                        className="accent-[#7FB77E]"
+                                      />
+                                      <span>
+                                        {review.changed ? "Apply this suggestion" : "No change to apply"}
+                                      </span>
+                                    </label>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="flex justify-end gap-3 mt-5">
+                              <button
+                                onClick={() => {
+                                  setSelectedPlan(null);
+                                  setTaskReviews([]);
+                                }}
+                                className="text-sm px-4 py-2 rounded-lg border border-[#BFD8B8] text-[#2F3E34] hover:bg-white transition-colors"
+                              >
+                                Cancel Review
+                              </button>
+                              <button
+                                onClick={handleApplyApprovedTasks}
+                                className="text-sm px-4 py-2 rounded-lg bg-[#7FB77E] text-white font-semibold hover:bg-[#68a367] transition-colors"
+                              >
+                                Apply Approved Changes
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="bg-white border border-[#BFD8B8] rounded-xl p-5">
@@ -856,7 +1110,7 @@ export function UserStatusWidget({
                                     onClick={() => handleChoosePlan(plan)}
                                     className="text-xs bg-[#E3EFE6] border border-[#BFD8B8] text-[#2F3E34] px-3 py-1.5 rounded-md hover:bg-[#7FB77E] hover:text-white transition-colors"
                                   >
-                                    Choose
+                                    Review
                                   </button>
                                 </td>
                               </tr>
@@ -916,6 +1170,7 @@ export function UserStatusWidget({
                                 <th className="py-2 pr-3">Mutation Count</th>
                                 <th className="py-2 pr-3">Score</th>
                                 <th className="py-2">Actions</th>
+                                <th className="py-2">Use</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -937,6 +1192,14 @@ export function UserStatusWidget({
                                   </td>
                                   <td className="py-3 text-[#2F3E34]/80">
                                     {renderActionSummary(plan.actions)}
+                                  </td>
+                                  <td className="py-3">
+                                    <button
+                                      onClick={() => handleChoosePlan(plan)}
+                                      className="text-xs bg-[#E3EFE6] border border-[#BFD8B8] text-[#2F3E34] px-3 py-1.5 rounded-md hover:bg-[#7FB77E] hover:text-white transition-colors"
+                                    >
+                                      Review
+                                    </button>
                                   </td>
                                 </tr>
                               ))}
@@ -1020,41 +1283,6 @@ export function UserStatusWidget({
         </div>
       )}
 
-      {showFinalConfirm && selectedPlan && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#2F3E34]/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95">
-            <div className="p-6 text-center">
-              <h3 className="text-xl font-bold text-[#2F3E34] mb-3">
-                Confirm Plan Selection
-              </h3>
-              <p className="text-sm text-[#2F3E34]/80 mb-6">
-                Apply{" "}
-                <span className="font-bold text-[#7FB77E]">
-                  "{selectedPlan.plan_type}"
-                </span>{" "}
-                with{" "}
-                <span className="font-bold">{selectedPlan.actions.length}</span>{" "}
-                suggested actions to your task list?
-              </p>
-
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setShowFinalConfirm(false)}
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-[#BFD8B8] text-[#2F3E34] hover:bg-[#F4F7F5] font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleFinalConfirm}
-                  className="flex-1 px-4 py-2.5 rounded-lg bg-[#7FB77E] text-white hover:bg-[#68a367] font-medium transition-colors shadow-sm"
-                >
-                  Apply Plan
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

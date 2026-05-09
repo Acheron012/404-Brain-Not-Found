@@ -102,6 +102,13 @@ export interface GeneratePlanResponse {
             reason: string;
           }>;
           unchanged: Array<number | string>;
+          task_reviews?: Array<{
+            task_id: number | string;
+            action: string;
+            new_hours?: number;
+            changed: boolean;
+            statement: string;
+          }>;
         }>;
         mutated_plans: Array<{
           plan_type: string;
@@ -138,6 +145,17 @@ export interface GeneratePlanResponse {
         };
         math_best?: string;
       };
+      reviews?: Record<
+        string,
+        Array<{
+          task_id: number | string;
+          task_name: string;
+          action: string;
+          new_hours?: number;
+          changed: boolean;
+          statement: string;
+        }>
+      >;
     };
   };
   decision?: {
@@ -178,6 +196,13 @@ export interface GeneratePlanResponse {
           reason: string;
         }>;
         unchanged: Array<number | string>;
+        task_reviews?: Array<{
+          task_id: number | string;
+          action: string;
+          new_hours?: number;
+          changed: boolean;
+          statement: string;
+        }>;
       }>;
       mutated_plans: Array<{
         plan_type: string;
@@ -214,6 +239,17 @@ export interface GeneratePlanResponse {
       };
       math_best?: string;
     };
+    reviews?: Record<
+      string,
+      Array<{
+        task_id: number | string;
+        task_name: string;
+        action: string;
+        new_hours?: number;
+        changed: boolean;
+        statement: string;
+      }>
+    >;
   };
 }
 

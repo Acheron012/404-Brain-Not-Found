@@ -57,14 +57,12 @@ const apiStatusToUiStatus = (status: TaskItem["status"]): TaskStatus => {
   if (status === "pending") return "not yet started";
   if (status === "in_progress") return "in progress";
   if (status === "not_yet_started") return "not yet started";
-  if (status === "in_progress") return "in progress";
-  return status === "pending" ? "pending" : status;
+  return status;
 };
 
 const uiStatusToApiStatus = (status: TaskStatus): TaskItem["status"] => {
   if (status === "in progress") return "in_progress";
   if (status === "not yet started") return "not_yet_started";
-  if (status === "in progress") return "in_progress";
   return status;
 };
 
@@ -299,10 +297,10 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-5 flex flex-col gap-6">
             <UserStatusWidget
-              onAddTask={handleAddTask}
               tasks={tasks}
               initialUserState={activeUserState}
               onSaveUserState={handleSaveUserState}
+              onUpdateTask={handleUpdateTask}
             />
 
             <AddTaskWidget onAddTask={handleAddTask} />
