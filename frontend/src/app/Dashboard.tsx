@@ -36,11 +36,14 @@ const intensityToLevel = (intensity: Task["intensity"]): TaskItem["level"] => {
 };
 
 const apiStatusToUiStatus = (status: TaskItem["status"]): TaskStatus => {
+  if (status === "pending") return "not yet started";
+  if (status === "in_progress") return "in progress";
   if (status === "not_yet_started") return "not yet started";
   return status;
 };
 
 const uiStatusToApiStatus = (status: TaskStatus): TaskItem["status"] => {
+  if (status === "in progress") return "in_progress";
   if (status === "not yet started") return "not_yet_started";
   return status;
 };

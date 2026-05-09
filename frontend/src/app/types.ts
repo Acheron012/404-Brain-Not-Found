@@ -1,4 +1,11 @@
-export type TaskStatus = 'finished' | 'pending' | 'delayed' | 'cancelled' | 'dropped' | 'missed' | 'not yet started';
+export type TaskStatus =
+  | 'finished'
+  | 'in progress'
+  | 'delayed'
+  | 'cancelled'
+  | 'dropped'
+  | 'missed'
+  | 'not yet started';
 export type Intensity = 'Easy' | 'Medium' | 'Hard';
 
 export interface Task {

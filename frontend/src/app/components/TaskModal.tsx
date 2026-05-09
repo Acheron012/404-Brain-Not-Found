@@ -98,7 +98,7 @@ export function TaskModal({ isOpen, onClose, date, tasks, onDeleteTask, onUpdate
                           className="text-xs border border-[#BFD8B8] rounded p-1.5 flex-1 bg-[#F4F7F5] text-[#2F3E34] outline-none"
                         >
                           <option value="finished">Finished</option>
-                          <option value="pending">Pending</option>
+                          <option value="in progress">In progress</option>
                           <option value="delayed">Delayed</option>
                           <option value="cancelled">Cancelled</option>
                           <option value="dropped">Dropped</option>

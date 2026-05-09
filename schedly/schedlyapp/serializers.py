@@ -18,6 +18,15 @@ class TaskSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError("Remaining hours must be non-negative.")
         return value
+
+    def validate_status(self, value):
+        """
+        Normalize legacy pending tasks into an explicit not-yet-started state.
+        New progress should move through not_yet_started -> in_progress -> finished.
+        """
+        if value == "pending":
+            return "not_yet_started"
+        return value
     
     def validate_deadline(self, value):
         """Validate that deadline is in the future."""

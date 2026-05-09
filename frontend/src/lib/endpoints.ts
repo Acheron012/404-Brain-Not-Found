@@ -19,6 +19,7 @@ export interface TaskItem {
   energy_required: 'low' | 'medium' | 'high';
   status:
     | 'pending'
+    | 'in_progress'
     | 'delayed'
     | 'finished'
     | 'dropped'
