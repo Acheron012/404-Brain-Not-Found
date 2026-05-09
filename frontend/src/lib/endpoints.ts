@@ -41,6 +41,13 @@ export interface GeneratePlanResponse {
   // New response contract used by the Suggested Task List modal.
   schedule_request?: ScheduleRequest;
   reasoning?: string;
+  decision?: {
+    id?: number;
+    selected_plan?: string;
+    score?: number;
+    metrics?: Record<string, unknown>;
+    reasoning?: string;
+  };
   plans?: Array<{
     plan_type: string;
     stance: string;

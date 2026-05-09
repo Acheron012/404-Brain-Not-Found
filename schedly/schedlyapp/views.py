@@ -48,47 +48,58 @@ class ScheduleRequestViewSet(ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         schedule_request = serializer.save()
-        
-        
-        # call the pipeline
+
+        # Pipeline entry point: pulls tasks/state from DB inside the pipeline.
+        # Sync wrapper wraps async agent stack (layers 3–5).
         try:
-            result = run_planning_pipeline(
-                tasks=tasks,
-                state=schedule_state,
-                constraints=constraints,
-                schedule_request_id=schedule_request.id,
-            )
+            result = run_planning_pipeline(schedule_request=schedule_request)
         except Exception as e:
             return Response(
                 {"error": f"Pipeline failed: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        
-        # store final decision
+
         plan_data = result["plan_decision"]
-        PlanDecision.objects.create(
+
+        saved_decision = PlanDecision.objects.create(
             schedule_request=schedule_request,
-            selected_plan = plan_data['selected_plan'],
-            score = plan_data['score'],
-            metrics = plan_data['metrics']
+            selected_plan=plan_data["selected_plan"],
+            score=plan_data["score"],
+            metrics=plan_data["metrics"],
         )
-        
+
+        agent1_debug = result.get("debug", {}).get("agent1", {})
+        # Three cards in the frontend read `plans` with plan_type / stance / actions.
+        frontend_plans = []
+        for p in agent1_debug.get("plans", []) or []:
+            frontend_plans.append(
+                {
+                    "plan_type": p.get("plan_type"),
+                    "stance": p.get("stance"),
+                    "actions": p.get("actions", []),
+                }
+            )
+
         return Response(
             {
-                # what the frontend shows the user
+                # Top-level payload expected by frontend `normalizeSuggestions`
+                "reasoning": plan_data.get("reasoning", ""),
+                "plans": frontend_plans,
                 "schedule_request": ScheduleRequestSerializer(schedule_request).data,
-                "decision": {
-                    "id":            decision.id,
-                    "selected_plan": decision.selected_plan,
-                    "score":         decision.score,
-                    "metrics":       decision.metrics,
-                    "reasoning":     plan_data["reasoning"],
+                "best_plan": {
+                    "selected_plan": plan_data["selected_plan"],
+                    "score": plan_data["score"],
+                    "metrics": plan_data["metrics"],
                 },
-
-                # everything teammates need locally — agents, scores, benchmark
-                # strip this out before production with DEBUG check
-                "debug": result["debug"],
+                "decision": {
+                    "id": saved_decision.id,
+                    "selected_plan": saved_decision.selected_plan,
+                    "score": saved_decision.score,
+                    "metrics": saved_decision.metrics,
+                    "reasoning": plan_data.get("reasoning", ""),
+                },
+                "debug": result.get("debug", {}),
             },
             status=status.HTTP_201_CREATED,
-        ) 
-    
+        )
+

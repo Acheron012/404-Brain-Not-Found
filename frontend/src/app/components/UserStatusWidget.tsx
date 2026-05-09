@@ -95,9 +95,13 @@ export function UserStatusWidget({
   const normalizeSuggestions = (
     payload: GeneratePlanResponse,
   ): SuggestionsPayload => {
-    if (payload.reasoning && Array.isArray(payload.plans)) {
+    // Prefer explicit `plans` whenever the backend sends them (reasoning may be empty).
+    if (Array.isArray(payload.plans)) {
       return {
-        reasoning: payload.reasoning,
+        reasoning:
+          payload.reasoning?.trim() ||
+          payload.decision?.reasoning?.trim() ||
+          "",
         plans: payload.plans.map((plan) => ({
           plan_type: plan.plan_type ?? "unknown",
           stance: plan.stance ?? "",
@@ -467,7 +471,7 @@ export function UserStatusWidget({
 
                     <div className="flex-1 overflow-y-auto max-h-[160px] mb-5 space-y-2 pr-2 custom-scrollbar">
                       <div className="text-xs text-[#2F3E34]/80">
-                        {"Fetching Task......"}
+                        {"Task List"}
                       </div>
                       {isLoadingSuggestions ? (
                         <>
