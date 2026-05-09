@@ -17,7 +17,7 @@ export function AllTasksWidget({ tasks }: AllTasksWidgetProps) {
   );
 
   return (
-    <div className="bg-[#E3EFE6] p-6 rounded-xl shadow-sm border border-[#BFD8B8] flex flex-col">
+    <div className="bg-[#F4F7F5] p-4 sm:p-6 rounded-xl shadow-sm border border-[#BFD8B8] flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-[#2F3E34]">All Tasks</h2>
         <span className="text-sm font-medium text-[#2F3E34] bg-[#BFD8B8] px-3 py-1 rounded-full">
@@ -30,18 +30,18 @@ export function AllTasksWidget({ tasks }: AllTasksWidgetProps) {
           No tasks created yet.
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-auto max-h-[520px] rounded-lg border border-[#BFD8B8]/60 bg-white">
+          <table className="w-full text-xs sm:text-sm min-w-[860px]">
             <thead>
-              <tr className="text-left text-[#2F3E34]/70 border-b border-[#BFD8B8]">
-                <th className="py-2 pr-3">Task</th>
+              <tr className="text-left text-[#2F3E34]/70 border-b border-[#BFD8B8] bg-[#E3EFE6] sticky top-0">
+                <th className="py-2 px-3">Task</th>
                 <th className="py-2 pr-3">Start</th>
                 <th className="py-2 pr-3">Deadline</th>
                 <th className="py-2 pr-3">Est. Hours</th>
                 <th className="py-2 pr-3">Energy</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Condition</th>
-                <th className="py-2">Remaining</th>
+                <th className="py-2 px-3">Remaining</th>
               </tr>
             </thead>
             <tbody>
@@ -50,7 +50,7 @@ export function AllTasksWidget({ tasks }: AllTasksWidgetProps) {
                   key={task.id}
                   className="border-b border-[#BFD8B8]/50 align-top"
                 >
-                  <td className="py-3 pr-3">
+                  <td className="py-3 px-3">
                     <div className="font-semibold text-[#2F3E34]">
                       {task.name}
                     </div>
@@ -68,7 +68,7 @@ export function AllTasksWidget({ tasks }: AllTasksWidgetProps) {
                       {task.scheduleCondition}
                     </span>
                   </td>
-                  <td className="py-3 text-[#2F3E34]/80">
+                  <td className="py-3 px-3 text-[#2F3E34]/80 whitespace-nowrap">
                     {formatRemainingTime(task.remainingTimeHours)}
                   </td>
                 </tr>

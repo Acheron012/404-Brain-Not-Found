@@ -8,6 +8,7 @@ import { AllTasksWidget } from "./components/AllTasksWidget";
 import { CalendarWidget } from "./components/CalendarWidget";
 import { AddTaskWidget } from "./components/AddTaskWidget";
 import { TaskModal } from "./components/TaskModal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { THEME_PALETTES, ThemeId } from "./themePalettes";
 import "./theme-overrides.css";
 import {
@@ -292,47 +293,62 @@ export default function Dashboard() {
           {apiError && <p className="text-sm text-red-600 mt-2">{apiError}</p>}
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            <div className="flex-none">
-              {/* Pass current tasks so suggestion actions can resolve task_id -> task name. */}
-              <UserStatusWidget
-                onAddTask={handleAddTask}
-                tasks={tasks}
-                initialUserState={activeUserState}
-                onSaveUserState={handleSaveUserState}
-              />
-            </div>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-5 flex flex-col gap-6">
+            <UserStatusWidget
+              onAddTask={handleAddTask}
+              tasks={tasks}
+              initialUserState={activeUserState}
+              onSaveUserState={handleSaveUserState}
+            />
 
-            <div className="flex-none">
-              {/* Uses the same shared tasks state as UserStatus and Calendar. */}
-              <ProgressWidget tasks={tasks} />
-            </div>
+            <AddTaskWidget onAddTask={handleAddTask} />
+          </div>
 
-            <div className="flex-none">
-              {/* Uses the same shared tasks state for synchronized list updates. */}
-              <ToDoListWidget
-                tasks={tasks}
-                onUpdateTask={handleUpdateTask}
-                onDeleteTask={handleDeleteTask}
-              />
-            </div>
-
-            <div className="flex-none">
-              <AllTasksWidget tasks={tasks} />
+          <div className="xl:col-span-7">
+            <div className="h-full min-h-[640px]">
+              <CalendarWidget tasks={tasks} onDateClick={handleDateClick} />
             </div>
           </div>
 
-          {/* Right Column */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <div className="flex-none">
-              {/* Uses the same shared tasks state for synchronized calendar badges. */}
-              <CalendarWidget tasks={tasks} onDateClick={handleDateClick} />
-            </div>
+          <div className="xl:col-span-12">
+            <ProgressWidget tasks={tasks} />
+          </div>
 
-            <div className="flex-1 min-h-[400px]">
-              <AddTaskWidget onAddTask={handleAddTask} />
+          <div className="xl:col-span-12">
+            <div className="bg-[#E3EFE6] border border-[#BFD8B8] rounded-xl p-4 shadow-sm">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#2F3E34]">
+                    Task Workspace
+                  </h2>
+                  <p className="text-sm text-[#2F3E34]/70">
+                    Switch between the focused today list and the full task table.
+                  </p>
+                </div>
+                <span className="text-sm font-medium text-[#2F3E34] bg-[#BFD8B8] px-3 py-1 rounded-full w-fit">
+                  {tasks.length} tasks tracked
+                </span>
+              </div>
+
+              <Tabs defaultValue="today" className="w-full">
+                <TabsList className="w-full md:w-auto bg-[#F4F7F5] border border-[#BFD8B8]">
+                  <TabsTrigger value="today">Today View</TabsTrigger>
+                  <TabsTrigger value="all">All Tasks</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="today" className="mt-4">
+                  <ToDoListWidget
+                    tasks={tasks}
+                    onUpdateTask={handleUpdateTask}
+                    onDeleteTask={handleDeleteTask}
+                  />
+                </TabsContent>
+
+                <TabsContent value="all" className="mt-4">
+                  <AllTasksWidget tasks={tasks} />
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
         </div>
