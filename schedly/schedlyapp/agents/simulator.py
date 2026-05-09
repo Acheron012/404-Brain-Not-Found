@@ -35,35 +35,45 @@ No markdown. Return ONLY valid JSON.
 
 
 def _compute_metrics(plan: dict, state: dict, tasks: list) -> dict:
-    task_map = {t["id"]: t for t in tasks}
+    # normalize to int keys — fixes silent LLM string vs int mismatch
+    task_map = {int(t["id"]): t for t in tasks}
 
-    fatigue_score = float(state.get("fatigue_score", 0.1))
+    fatigue_score    = float(state.get("fatigue_score", 0.1))
     effective_energy = float(state.get("effective_energy", 0.5))
     total_task_hours = float(state.get("total_task_hours", 1))
-    capacity_hours = float(state.get("capacity_hours", 8))
+    capacity_hours   = float(state.get("capacity_hours", 8))
 
     energy_drain_factor = 1 - effective_energy
-    effective_hours = 0.0
-    high_energy_risk = 0
-    total_actions = len(plan.get("actions", []))
+    effective_hours     = 0.0
+    risk_score          = 0.0
+    total_actions       = len(plan.get("actions", []))
 
     for action in plan.get("actions", []):
-        task_id = action.get("task_id")
-        action_name = action.get("action", "proceed")
-        task = task_map.get(task_id, {})
+        # normalize task_id to int
+        raw_id = action.get("task_id")
+        try:
+            task_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
 
-        remaining = float(task.get("remaining_hours", 0))
+        action_name    = action.get("action", "proceed")
+        task           = task_map.get(task_id, {})
+        remaining      = float(task.get("remaining_hours", 0))
         energy_required = task.get("energy_required", "medium")
+        energy_weight  = {"high": 1.0, "medium": 0.5, "low": 0.2}.get(energy_required, 0.5)
 
         if action_name == "proceed":
             effective_hours += remaining
-            if energy_required == "high" and fatigue_score > 0.6:
-                high_energy_risk += 1
+            risk_score += energy_weight * fatigue_score
+
         elif action_name == "compress":
             new_hours = float(action.get("new_hours", remaining * 0.7))
             effective_hours += new_hours
-            if energy_required == "high" and fatigue_score > 0.6:
-                high_energy_risk += 1
+            risk_score += energy_weight * fatigue_score * (
+                new_hours / remaining if remaining > 0 else 0.5
+            )
+
+        # delay, drop, miss, outsource → no hours, no risk contribution
 
     completion_rate = (
         min(effective_hours / total_task_hours, 1.0) if total_task_hours > 0 else 0.0
@@ -76,22 +86,28 @@ def _compute_metrics(plan: dict, state: dict, tasks: list) -> dict:
         (capacity_hours - effective_hours) / capacity_hours if capacity_hours > 0 else 0.0
     )
     overload_delta = max(min(overload_delta, 1.0), -1.0)
-    stability = 1 - (high_energy_risk / total_actions) if total_actions > 0 else 1.0
+
+    # stability: normalized continuous score, varies meaningfully across plans
+    max_possible_risk = total_actions * 1.0 * 1.0  # all high energy, fatigue = 1.0
+    stability = (
+        1 - (risk_score / max_possible_risk) if max_possible_risk > 0 else 1.0
+    )
+    stability = max(0.0, min(1.0, stability))
 
     score = (
-        completion_rate * 0.35
+        completion_rate  * 0.35
         + (1 - fatigue_end) * 0.30
-        + overload_delta * 0.20
-        + stability * 0.15
+        + overload_delta    * 0.20
+        + stability         * 0.15
     )
     score = max(min(score, 1.0), 0.0)
 
     return {
         "completion_rate": round(completion_rate, 3),
-        "fatigue_end": round(fatigue_end, 3),
-        "overload_delta": round(overload_delta, 3),
-        "stability": round(stability, 3),
-        "score": round(score, 3),
+        "fatigue_end":     round(fatigue_end, 3),
+        "overload_delta":  round(overload_delta, 3),
+        "stability":       round(stability, 3),
+        "score":           round(score, 3),
     }
 
 
