@@ -1,105 +1,165 @@
-from rest_framework.viewsets import ModelViewSet
-from rest_framework.response import Response
-from rest_framework.decorators import action
 from rest_framework import status
-from .serializers import UserStateSerializer, ScheduleRequestSerializer, TaskSerializer
-from .models import UserState, Task, ScheduleRequest, PlanDecision
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
+
+from .models import PlanDecision, ScheduleRequest, Task, UserState
+from .serializers import (
+    ScheduleRequestSerializer,
+    TaskSerializer,
+    UserStateSerializer,
+)
 from .services.pipeline import run_planning_pipeline
 
 
 class UserStateViewSet(ModelViewSet):
     """ViewSet for UserState model."""
-    queryset = UserState.objects.all()
+    queryset = UserState.objects.order_by("id")
     serializer_class = UserStateSerializer
-    
+
+    def create(self, request, *args, **kwargs):
+        """
+        Enforce single-user mode for the app.
+        If a UserState already exists, update and return that canonical record
+        instead of creating a second user row.
+        """
+        existing_user = self.get_queryset().first()
+        if existing_user is not None:
+            serializer = self.get_serializer(
+                existing_user,
+                data=request.data,
+                partial=False,
+            )
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return super().create(request, *args, **kwargs)
+
 class TaskViewSet(ModelViewSet):
     """ViewSet for Task model."""
+
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
-    
+
     def get_queryset(self):
-       """Filter tasks by user if ?user=<id> is provided. Otherwise, return all tasks."""
-       queryset = super().get_queryset()
-       user_id = self.request.GET.get('user')
-       
-       if user_id is not None:
-           queryset = queryset.filter(user_id=user_id)
-       return queryset    
-   
+        """Filter tasks by user if ?user=<id> is provided. Otherwise, return all tasks."""
+        queryset = super().get_queryset()
+        user_id = self.request.GET.get("user")
+
+        if user_id is not None:
+            queryset = queryset.filter(user_id=user_id)
+        return queryset
+
+
 class ScheduleRequestViewSet(ModelViewSet):
     """ViewSet for ScheduleRequest model."""
+
     queryset = ScheduleRequest.objects.all()
     serializer_class = ScheduleRequestSerializer
-    
+
     def get_queryset(self):
-       """Filter schedule requests by user if ?user=<id> is provided. Otherwise, return all schedule requests."""
-       queryset = super().get_queryset()
-       user_id = self.request.GET.get('user')
-       
-       if user_id is not None:
-           queryset = queryset.filter(user_id=user_id)
-       return queryset  
+        """Filter schedule requests by user if ?user=<id> is provided. Otherwise, return all schedule requests."""
+        queryset = super().get_queryset()
+        user_id = self.request.GET.get("user")
+
+        if user_id is not None:
+            queryset = queryset.filter(user_id=user_id)
+        return queryset
     
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=["post"])
+    def apply_plan(self, request):
+        approved_tasks = request.data.get("approved_tasks", [])
+
+        if not approved_tasks:
+            return Response(
+                {"error": "No approved tasks provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        updated = []
+        errors = []
+
+        for item in approved_tasks:
+            task_id   = item.get("task_id")
+            action    = item.get("action")
+            new_hours = item.get("new_hours")
+            statement = item.get("statement", "")
+
+            try:
+                task = Task.objects.get(id=task_id)
+
+                note = f"[Plan suggestion] {statement}"
+                task.body = f"{task.body}\n{note}" if task.body else note
+                update_fields = ["body"]
+
+                if action == "compress" and new_hours is not None:
+                    task.remaining_hours = float(new_hours)  # ← was estimated_hours
+                    update_fields.append("remaining_hours")
+                elif action in ("delay", "drop", "miss"):
+                    task.status = action
+                    update_fields.append("status")
+
+                task.save(update_fields=update_fields)
+                updated.append(task_id)
+
+            except Task.DoesNotExist:
+                errors.append({"task_id": task_id, "error": "Not found"})
+            except Exception as exc:
+                errors.append({"task_id": task_id, "error": str(exc)})
+
+        status_code = (
+            status.HTTP_200_OK if updated else status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+        return Response({"updated": updated, "errors": errors}, status=status_code)
+
+    @action(detail=False, methods=["post"])
     def generate_plan(self, request):
-        """Custom action to generate a schedule plan based on the ScheduleRequest."""
-        
-        # Create the ScheduleRequest instance from the request data
+        """Create a schedule request and run the full planning pipeline."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         schedule_request = serializer.save()
 
-        # Pipeline entry point: pulls tasks/state from DB inside the pipeline.
-        # Sync wrapper wraps async agent stack (layers 3–5).
         try:
-            result = run_planning_pipeline(schedule_request=schedule_request)
-        except Exception as e:
+            result = run_planning_pipeline(schedule_request)
+        except Exception as exc:
             return Response(
-                {"error": f"Pipeline failed: {str(e)}"},
+                {"error": f"Pipeline failed: {str(exc)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         plan_data = result["plan_decision"]
-
-        saved_decision = PlanDecision.objects.create(
+        decision = PlanDecision.objects.create(
             schedule_request=schedule_request,
             selected_plan=plan_data["selected_plan"],
             score=plan_data["score"],
             metrics=plan_data["metrics"],
         )
 
-        agent1_debug = result.get("debug", {}).get("agent1", {})
-        # Three cards in the frontend read `plans` with plan_type / stance / actions.
-        frontend_plans = []
-        for p in agent1_debug.get("plans", []) or []:
-            frontend_plans.append(
-                {
-                    "plan_type": p.get("plan_type"),
-                    "stance": p.get("stance"),
-                    "actions": p.get("actions", []),
-                }
-            )
+        agent1 = result["debug"]["agent1"]
 
         return Response(
             {
-                # Top-level payload expected by frontend `normalizeSuggestions`
-                "reasoning": plan_data.get("reasoning", ""),
-                "plans": frontend_plans,
                 "schedule_request": ScheduleRequestSerializer(schedule_request).data,
-                "best_plan": {
-                    "selected_plan": plan_data["selected_plan"],
-                    "score": plan_data["score"],
-                    "metrics": plan_data["metrics"],
-                },
+                "reasoning": agent1["reasoning"],
+                "plans": agent1["plans"],
                 "decision": {
-                    "id": saved_decision.id,
-                    "selected_plan": saved_decision.selected_plan,
-                    "score": saved_decision.score,
-                    "metrics": saved_decision.metrics,
-                    "reasoning": plan_data.get("reasoning", ""),
+                    "id": decision.id,
+                    "selected_plan": decision.selected_plan,
+                    "score": decision.score,
+                    "metrics": decision.metrics,
+                    "reasoning": plan_data["reasoning"],
                 },
-                "debug": result.get("debug", {}),
+                "best_plan": {
+                    "plan_decision": {
+                        "selected_plan": decision.selected_plan,
+                        "score": decision.score,
+                        "metrics": decision.metrics,
+                        "reasoning": plan_data["reasoning"],
+                    },
+                    "debug": result["debug"],
+                },
+                "debug": result["debug"],
             },
             status=status.HTTP_201_CREATED,
         )
-

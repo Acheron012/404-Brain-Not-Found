@@ -1,24 +1,14 @@
-import asyncio, json, time, os, dotenv
-from langchain_core.prompts import ChatPromptTemplate
+import asyncio
+import json
+import time
+import numpy as np
+
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
+from langchain_core.prompts import ChatPromptTemplate
 from langsmith import traceable
 
-dotenv.load_dotenv()
+from ..llm import get_chat_llm
 
-hf_token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
-if not hf_token:
-    raise ValueError("Missing HUGGINGFACEHUB_API_TOKEN in environment variables")
-
-
-# ── LLM (shared across all 6 simulation interpretation calls) ──────────────
-llm = HuggingFaceEndpoint(
-    model="Qwen/Qwen2-7B-Instruct:featherless-ai",
-    huggingfacehub_api_token=hf_token,
-    temperature=0.4,
-    max_new_tokens=300,  
-)
-llm = ChatHuggingFace(llm=llm)
 parser = JsonOutputParser()
 
 
@@ -37,7 +27,7 @@ MATH SCORES:
 - Stability: {stability} (resilience if a task runs over time)
 - Composite score: {score}
 
-Write a JSON object with one key "summary" — a 2-3 sentence plain-language
+Write a JSON object with one key "summary" - a 2-3 sentence plain-language
 explanation of why this plan scored the way it did. Reference specific numbers.
 No markdown. Return ONLY valid JSON.
 
@@ -45,60 +35,71 @@ No markdown. Return ONLY valid JSON.
 """)
 
 
-# ── Math layer ─────────────────────────────────────────────────────────────
-
 def _compute_metrics(plan: dict, state: dict, tasks: list) -> dict:
-    """
-    Pure deterministic scoring. No LLM involved.
-    Returns raw metrics and composite score.
-    """
-    task_map = {t["id"]: t for t in tasks}
+    # normalize to int keys — fixes silent LLM string vs int mismatch
+    task_map = {int(t["id"]): t for t in tasks}
 
     fatigue_score    = float(state.get("fatigue_score", 0.1))
     effective_energy = float(state.get("effective_energy", 0.5))
     total_task_hours = float(state.get("total_task_hours", 1))
     capacity_hours   = float(state.get("capacity_hours", 8))
 
-    energy_drain_factor = (1 - effective_energy)
-
-    effective_hours  = 0.0
-    high_energy_risk = 0
-    total_actions    = len(plan.get("actions", []))
+    energy_drain_factor = 1 - effective_energy
+    effective_hours     = 0.0
+    risk_score          = 0.0
+    total_actions       = len(plan.get("actions", []))
 
     for action in plan.get("actions", []):
-        task_id = action.get("task_id")
-        act     = action.get("action", "proceed")
-        task    = task_map.get(task_id, {})
+        # normalize task_id to int
+        raw_id = action.get("task_id")
+        try:
+            task_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
 
-        remaining = float(task.get("remaining_hours", 0))
+        action_name    = action.get("action", "proceed")
+        task           = task_map.get(task_id, {})
+        remaining      = float(task.get("remaining_hours", 0))
         energy_required = task.get("energy_required", "medium")
+        energy_weight  = {"high": 1.0, "medium": 0.5, "low": 0.2}.get(energy_required, 0.5)
 
-        if act == "proceed":
+        if action_name == "proceed":
             effective_hours += remaining
-            if energy_required == "high" and fatigue_score > 0.6:
-                high_energy_risk += 1
+            risk_score += energy_weight * fatigue_score
 
-        elif act == "compress":
+        elif action_name == "compress":
             new_hours = float(action.get("new_hours", remaining * 0.7))
             effective_hours += new_hours
-            if energy_required == "high" and fatigue_score > 0.6:
-                high_energy_risk += 1
+            risk_score += energy_weight * fatigue_score * (
+                new_hours / remaining if remaining > 0 else 0.5
+            )
 
-        # delay, miss, drop, outsource → 0 hours, no fatigue contribution
+        # delay, drop, miss, outsource → no hours, no risk contribution
 
-    # compute 4 metrics
-    completion_rate = min(effective_hours / total_task_hours, 1.0) if total_task_hours > 0 else 0.0
-    fatigue_end     = min(fatigue_score + (effective_hours * energy_drain_factor / max(capacity_hours, 1)),1.0)
-    overload_delta  = (capacity_hours - effective_hours) / capacity_hours if capacity_hours > 0 else 0.0
-    overload_delta  = max(min(overload_delta, 1.0), -1.0)
-    stability       = 1 - (high_energy_risk / total_actions) if total_actions > 0 else 1.0
+    completion_rate = (
+        min(effective_hours / total_task_hours, 1.0) if total_task_hours > 0 else 0.0
+    )
+    fatigue_end = min(
+        fatigue_score + (effective_hours * energy_drain_factor / max(capacity_hours, 1)),
+        1.0,
+    )
+    overload_delta = (
+        (capacity_hours - effective_hours) / capacity_hours if capacity_hours > 0 else 0.0
+    )
+    overload_delta = max(min(overload_delta, 1.0), -1.0)
 
-    # composite score
+    # stability: normalized continuous score, varies meaningfully across plans
+    max_possible_risk = total_actions * 1.0 * 1.0  # all high energy, fatigue = 1.0
+    stability = (
+        1 - (risk_score / max_possible_risk) if max_possible_risk > 0 else 1.0
+    )
+    stability = max(0.0, min(1.0, stability))
+
     score = (
-        completion_rate      * 0.35 +
-        (1 - fatigue_end)    * 0.30 +
-        overload_delta       * 0.20 +
-        stability            * 0.15
+        completion_rate  * 0.35
+        + (1 - fatigue_end) * 0.30
+        + overload_delta    * 0.20
+        + stability         * 0.15
     )
     score = max(min(score, 1.0), 0.0)
 
@@ -111,99 +112,68 @@ def _compute_metrics(plan: dict, state: dict, tasks: list) -> dict:
     }
 
 
-# ── LLM interpretation layer ───────────────────────────────────────────────
-
 async def _interpret(plan: dict, state: dict, metrics: dict) -> str:
-    """
-    Small async LLM call — turns math scores into a human-readable summary.
-    Runs concurrently with all other interpret calls via asyncio.gather.
-    """
+    llm = get_chat_llm(temperature=0.4, max_tokens=300)
     chain = interpret_prompt | llm | parser
 
-    result = await chain.ainvoke({
-        "plan_type":       plan.get("plan_type", "unknown"),
-        "actions":         json.dumps(plan.get("actions", []), indent=2),
-        "state":           json.dumps(state, indent=2),
-        "completion_rate": metrics["completion_rate"],
-        "fatigue_end":     metrics["fatigue_end"],
-        "overload_delta":  metrics["overload_delta"],
-        "stability":       metrics["stability"],
-        "score":           metrics["score"],
-    })
+    result = await chain.ainvoke(
+        {
+            "plan_type": plan.get("plan_type", "unknown"),
+            "actions": json.dumps(plan.get("actions", []), indent=2),
+            "state": json.dumps(state, indent=2),
+            "completion_rate": metrics["completion_rate"],
+            "fatigue_end": metrics["fatigue_end"],
+            "overload_delta": metrics["overload_delta"],
+            "stability": metrics["stability"],
+            "score": metrics["score"],
+        }
+    )
 
     return result.get("summary", "")
 
 
-# ── Single plan simulator ──────────────────────────────────────────────────
-
 async def _simulate_one(plan: dict, state: dict, tasks: list) -> dict:
-    """
-    Simulates a single plan:
-      1. Math scoring (sync, instant)
-      2. LLM interpretation (async, runs in parallel with other plans)
-
-    Returns the full simulation result for this plan.
-    """
     metrics = _compute_metrics(plan, state, tasks)
     summary = await _interpret(plan, state, metrics)
 
     return {
         "plan_type": plan.get("plan_type"),
-        "score":     metrics["score"],
+        "score": metrics["score"],
         "metrics": {
-            "completion":  metrics["completion_rate"],
-            "fatigue":     metrics["fatigue_end"],
-            "overload":    metrics["overload_delta"],
-            "stability":   metrics["stability"],
+            "completion": metrics["completion_rate"],
+            "fatigue": metrics["fatigue_end"],
+            "overload": metrics["overload_delta"],
+            "stability": metrics["stability"],
         },
-        "summary":  summary,
-        "actions":  plan.get("actions", []),
+        "summary": summary,
+        "actions": plan.get("actions", []),
     }
 
 
-# ── Main Layer 4 entry point ───────────────────────────────────────────────
-
 @traceable(name="layer4_simulator", run_type="chain", tags=["layer4", "simulate", "amd"])
 async def simulate_all(layer3_output: dict, state: dict, tasks: list) -> dict:
-    """
-    Layer 4 — Parallel Plan Simulator.
-    Fires all 6 simulations concurrently via asyncio.gather.
-
-    Args:
-        layer3_output: output from layer3.run_layer3()
-                       expects keys: original_plans, mutated_plans
-        state:         schedule_state dict from Layer 1/2
-        tasks:         list of task dicts
-
-    Returns:
-        dict with keys:
-          results        — all 6 simulation results with scores
-          benchmark      — wall time for all 6 (AMD showcase)
-          best_plan      — highest scoring plan_type (for Agent 3 context)
-    """
     original_plans = layer3_output.get("original_plans", [])
-    mutated_plans  = layer3_output.get("mutated_plans", [])
-    all_plans      = original_plans + mutated_plans  # 6 total
+    mutated_plans = layer3_output.get("mutated_plans", [])
+    all_plans = original_plans + mutated_plans
 
     print(f"[Layer 4] Simulating {len(all_plans)} plans in parallel...")
-
     start = time.perf_counter()
 
-    # all 6 LLM interpretation calls fire simultaneously
-    results = await asyncio.gather(*[
-        _simulate_one(plan, state, tasks)
-        for plan in all_plans
-    ])
+    results = await asyncio.gather(
+        *[_simulate_one(plan, state, tasks) for plan in all_plans]
+    )
 
     wall_time = round(time.perf_counter() - start, 3)
-
     print(f"[Layer 4] All simulations completed in {wall_time}s")
 
     results = list(results)
-    best    = max(results, key=lambda r: r["score"])
+    best = max(results, key=lambda result: result["score"])
 
     return {
-        "results":    results,
-        "benchmark":  {"wall_time_seconds": wall_time, "plans_simulated": len(all_plans)},
-        "best_plan":  best["plan_type"],
+        "results": results,
+        "benchmark": {
+            "wall_time_seconds": wall_time,
+            "plans_simulated": len(all_plans),
+        },
+        "best_plan": best["plan_type"],
     }

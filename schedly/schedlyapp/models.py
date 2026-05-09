@@ -74,6 +74,7 @@ class Task(models.Model):
             ('hard', 'Hard')
         ]
     )
+    start_date = models.DateTimeField()
     deadline = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     

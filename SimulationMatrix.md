@@ -44,7 +44,7 @@
 | **completion_rate** | `MIN(effective_hours / total_task_hours, 1.0)` | [0, 1] | 35% | Productivity: How much work gets done |
 | **fatigue_end** | `MIN(fatigue_score + (effective_hours × energy_drain_factor / capacity_hours), 1.0)` | [0, 1] | 30% (inverted) | Health: User's fatigue level by day's end |
 | **overload_delta** | `(capacity_hours - effective_hours) / capacity_hours` | [-1, 1] | 20% | Capacity: Breathing room or pressure |
-| **stability** | `1 - (high_energy_risk / total_actions)` | [0, 1] | 15% | Resilience: Protection against risky combos |
+| **stability** | `max(0, min(1, 1 - (high_energy_risk / total_actions)))` | [0, 1] | 15% | Resilience: Protection against risky combos |
 
 ---
 

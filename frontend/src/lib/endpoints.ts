@@ -19,6 +19,7 @@ export interface TaskItem {
   energy_required: 'low' | 'medium' | 'high';
   status:
     | 'pending'
+    | 'in_progress'
     | 'delayed'
     | 'finished'
     | 'dropped'
@@ -26,8 +27,19 @@ export interface TaskItem {
     | 'missed'
     | 'not_yet_started';
   level: 'easy' | 'medium' | 'hard';
+  start_date: string;
   deadline: string;
   created_at: string;
+  schedule_condition?:
+    | 'upcoming'
+    | 'on_track'
+    | 'delayed'
+    | 'missed'
+    | 'early_start'
+    | 'finished'
+    | 'cancelled'
+    | 'dropped';
+  remaining_time_hours?: number;
 }
 
 export interface ScheduleRequest {
@@ -37,34 +49,76 @@ export interface ScheduleRequest {
   created_at: string;
 }
 
-export interface GeneratePlanResponse {
-  // New response contract used by the Suggested Task List modal.
-  schedule_request?: ScheduleRequest;
-  reasoning?: string;
-  decision?: {
-    id?: number;
-    selected_plan?: string;
-    score?: number;
-    metrics?: Record<string, unknown>;
-    reasoning?: string;
-  };
-  plans?: Array<{
-    plan_type: string;
-    stance: string;
-    actions: Array<{
-      task_id: number;
-      action: string;
-      new_hours?: number;
-    }>;
-  }>;
-  // Backward-compat fallback still returned by older backend implementations.
-  best_plan?: {
-    selected_plan: string;
-    score: number;
-    metrics: Record<string, unknown>;
-  };
+export interface PlanMetrics {
+  completion: number;
+  fatigue: number;
+  overload: number;
+  stability: number;
 }
 
+export interface PlanAction {
+  task_id: number | string;
+  action: string;
+  new_hours?: number;
+}
+
+export interface OriginalPlan {
+  plan_type: string;
+  stance: string;
+  score: number;
+  actions: PlanAction[];
+  mutation_count?: number;
+}
+
+export interface Agent2Critique {
+  plan_type: string;
+  overall_critique: string;
+  mutations: Array<{
+    task_id: number | string;
+    original_action: string;
+    mutated_action: string;
+    new_hours?: number;
+    reason: string;
+  }>;
+  unchanged: Array<number | string>;
+}
+
+export interface SimulationResult {
+  plan_type: string;
+  score: number;
+  metrics: PlanMetrics;
+  summary: string;
+  actions: PlanAction[];
+}
+
+export interface GeneratePlanResponse {
+  schedule_request: ScheduleRequest;
+  decision: {
+    id: number;
+    selected_plan: string;
+    score: number;
+    metrics: PlanMetrics;
+    reasoning: string;
+  };
+  debug: {
+    agent1: {
+      reasoning: string;
+      plans: OriginalPlan[];
+    };
+    agent2: {
+      critiques: Agent2Critique[];
+      mutated_plans: OriginalPlan[];
+    };
+    layer4: {
+      all_simulations: SimulationResult[];
+      benchmark: {
+        wall_time_seconds: number;
+        plans_simulated: number;
+      };
+      math_best: string;
+    };
+  };
+}
 // Endpoint wrappers centralize URL paths and request shapes.
 // User states
 export const listUserStates = () => apiRequest<UserState[]>('/api/user-states/', { method: 'GET' });
@@ -125,3 +179,21 @@ export const generatePlan = (payload: Omit<ScheduleRequest, 'id' | 'created_at'>
     method: 'POST',
     data: payload,
   });
+
+export const applyPlan = async (payload: {
+    decision_id: number | undefined;
+    approved_tasks: Array<{
+        task_id: string;
+        action: string;
+        new_hours?: number;
+        statement: string;
+    }>;
+}) => {
+    const res = await fetch("/api/schedule-requests/apply_plan/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+};
