@@ -74,8 +74,9 @@ export default function Dashboard() {
     const initialize = async () => {
       try {
         const users = await listUserStates();
+        const sortedUsers = [...users].sort((a, b) => a.id - b.id);
         const user =
-          users[0] ??
+          sortedUsers[0] ??
           (await createUserState({
             energy_level: "medium",
             fatigue_level: "low",

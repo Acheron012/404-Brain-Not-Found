@@ -15,10 +15,27 @@ from .services.pipeline import run_planning_pipeline
 
 class UserStateViewSet(ModelViewSet):
     """ViewSet for UserState model."""
-
-    queryset = UserState.objects.all()
+    queryset = UserState.objects.order_by("id")
     serializer_class = UserStateSerializer
 
+    def create(self, request, *args, **kwargs):
+        """
+        Enforce single-user mode for the app.
+        If a UserState already exists, update and return that canonical record
+        instead of creating a second user row.
+        """
+        existing_user = self.get_queryset().first()
+        if existing_user is not None:
+            serializer = self.get_serializer(
+                existing_user,
+                data=request.data,
+                partial=False,
+            )
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return super().create(request, *args, **kwargs)
 
 class TaskViewSet(ModelViewSet):
     """ViewSet for Task model."""
