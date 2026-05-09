@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -25,7 +26,9 @@ SECRET_KEY = 'django-insecure-mul$a=l@d&ldi5wb7rx!ev)7z_fg10t=xb!@34*mgmg2j5m72*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+default_allowed_hosts = "localhost,127.0.0.1,0.0.0.0,backend"
+allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS", default_allowed_hosts)
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
 
 
 # Application definition
@@ -46,6 +49,8 @@ INSTALLED_APPS = [
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

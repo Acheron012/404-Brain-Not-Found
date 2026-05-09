@@ -86,3 +86,19 @@ Notes:
 - The frontend's source lives in `frontend/src` and the package configuration is in `frontend/package.json`.
 - There's a Dockerfile in `frontend/` if you prefer containerized builds and previews.
 
+## Docker Development
+
+You can run the frontend and backend together with Docker Compose for parallel development with live updates.
+
+```powershell
+docker compose up --build
+```
+
+Endpoints:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000`
+- Swagger docs: `http://localhost:8000/docs/`
+
+More detail is in [DOCKER_DEVELOPMENT.md](DOCKER_DEVELOPMENT.md).
+
