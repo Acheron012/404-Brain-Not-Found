@@ -8,8 +8,6 @@ from langsmith import traceable
 
 from ..llm import get_chat_llm
 
-
-llm = get_chat_llm(temperature=0.4, max_tokens=300)
 parser = JsonOutputParser()
 
 
@@ -98,6 +96,7 @@ def _compute_metrics(plan: dict, state: dict, tasks: list) -> dict:
 
 
 async def _interpret(plan: dict, state: dict, metrics: dict) -> str:
+    llm = get_chat_llm(temperature=0.4, max_tokens=300)
     chain = interpret_prompt | llm | parser
 
     result = await chain.ainvoke(

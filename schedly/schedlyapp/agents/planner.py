@@ -6,10 +6,6 @@ from langsmith import traceable
 
 from ..llm import get_chat_llm
 
-
-llm = get_chat_llm(temperature=0.6, max_tokens=1024)
-
-
 parser = JsonOutputParser()
 
 
@@ -151,6 +147,7 @@ def generate(tasks, state, constraints) -> dict:
     Returns:
         dict: { reasoning, plans: [...], _validation: { ok, issues } }
     """
+    llm = get_chat_llm(temperature=0.6, max_tokens=1024)
     chain = prompt | llm | parser
 
     response = chain.invoke(

@@ -6,8 +6,6 @@ from langsmith import traceable
 
 from ..llm import get_chat_llm
 
-
-llm = get_chat_llm(temperature=0.5, max_tokens=1024)
 parser = JsonOutputParser()
 
 
@@ -224,6 +222,7 @@ def critique(tasks, state, constraints, agent1_output) -> dict:
           mutated_plans - 3 merged plans ready for Layer 4 simulation
           _validation - { ok, issues }
     """
+    llm = get_chat_llm(temperature=0.5, max_tokens=1024)
     chain = prompt | llm | parser
 
     result = chain.invoke(
