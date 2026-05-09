@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Task, TaskStatus, TaskScheduleCondition } from "./types";
+import { EnergyLevel, Task, TaskStatus, TaskScheduleCondition } from "./types";
 import { Check, Palette } from "lucide-react";
 import { ProgressWidget } from "./components/ProgressWidget";
 import { UserStatusWidget } from "./components/UserStatusWidget";
 import { ToDoListWidget } from "./components/ToDoListWidget";
+import { AllTasksWidget } from "./components/AllTasksWidget";
 import { CalendarWidget } from "./components/CalendarWidget";
 import { AddTaskWidget } from "./components/AddTaskWidget";
 import { TaskModal } from "./components/TaskModal";
@@ -35,6 +36,22 @@ const intensityToLevel = (intensity: Task["intensity"]): TaskItem["level"] => {
   return "medium";
 };
 
+const apiEnergyToUiEnergy = (
+  energy: TaskItem["energy_required"],
+): EnergyLevel => {
+  if (energy === "low") return "Low";
+  if (energy === "high") return "High";
+  return "Medium";
+};
+
+const uiEnergyToApiEnergy = (
+  energy: EnergyLevel,
+): TaskItem["energy_required"] => {
+  if (energy === "Low") return "low";
+  if (energy === "High") return "high";
+  return "medium";
+};
+
 const apiStatusToUiStatus = (status: TaskItem["status"]): TaskStatus => {
   if (status === "not_yet_started") return "not yet started";
   if (status === "in_progress") return "in progress";
@@ -60,11 +77,14 @@ const mapApiTaskToUiTask = (task: TaskItem): Task => ({
   id: String(task.id),
   name: task.title,
   description: task.body ?? "",
+  estimatedHours: task.remaining_hours,
+  energyRequired: apiEnergyToUiEnergy(task.energy_required),
   startDate: task.start_date.slice(0, 10),
   deadline: task.deadline.slice(0, 10),
   intensity: levelToIntensity(task.level),
   status: apiStatusToUiStatus(task.status),
   scheduleCondition: apiScheduleConditionToUi(task.schedule_condition),
+  remainingTimeHours: task.remaining_time_hours ?? 0,
 });
 
 export default function Dashboard() {
@@ -118,7 +138,7 @@ export default function Dashboard() {
 
   // Persist new tasks to Django, then sync local UI state.
   const handleAddTask = async (
-    newTaskData: Omit<Task, "id" | "scheduleCondition">,
+    newTaskData: Omit<Task, "id" | "scheduleCondition" | "remainingTimeHours">,
   ) => {
     if (!activeUserId) return;
 
@@ -128,11 +148,10 @@ export default function Dashboard() {
         user: activeUserId,
         title: newTaskData.name,
         body: newTaskData.description,
-        remaining_hours: 1,
+        remaining_hours: newTaskData.estimatedHours,
         priority_level:
           level === "easy" ? "low" : level === "hard" ? "high" : "medium",
-        energy_required:
-          level === "easy" ? "low" : level === "hard" ? "high" : "medium",
+        energy_required: uiEnergyToApiEnergy(newTaskData.energyRequired),
         status: uiStatusToApiStatus(newTaskData.status),
         level,
         start_date: `${newTaskData.startDate}T00:00:00Z`,
@@ -171,11 +190,10 @@ export default function Dashboard() {
           user: activeUserId,
           title: updatedTask.name,
           body: updatedTask.description,
-          remaining_hours: 1,
+          remaining_hours: updatedTask.estimatedHours,
           priority_level:
             level === "easy" ? "low" : level === "hard" ? "high" : "medium",
-          energy_required:
-            level === "easy" ? "low" : level === "hard" ? "high" : "medium",
+          energy_required: uiEnergyToApiEnergy(updatedTask.energyRequired),
           status: uiStatusToApiStatus(updatedTask.status),
           level,
           start_date: `${updatedTask.startDate}T00:00:00Z`,
@@ -299,6 +317,10 @@ export default function Dashboard() {
                 onUpdateTask={handleUpdateTask}
                 onDeleteTask={handleDeleteTask}
               />
+            </div>
+
+            <div className="flex-none">
+              <AllTasksWidget tasks={tasks} />
             </div>
           </div>
 

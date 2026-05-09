@@ -39,6 +39,7 @@ export interface TaskItem {
     | 'finished'
     | 'cancelled'
     | 'dropped';
+  remaining_time_hours?: number;
 }
 
 export interface ScheduleRequest {

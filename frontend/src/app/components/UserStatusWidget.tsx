@@ -16,7 +16,7 @@ import {
 
 interface UserStatusWidgetProps {
   onAddTask?: (
-    task: Omit<Task, "id" | "scheduleCondition">,
+    task: Omit<Task, "id" | "scheduleCondition" | "remainingTimeHours">,
   ) => Promise<void> | void;
   tasks?: Task[];
   initialUserState?: ApiUserState | null;
@@ -280,6 +280,8 @@ export function UserStatusWidget({
         onAddTask({
           name: mappedName,
           description: `Action: ${actionItem.action}${hourSuffix}`,
+          estimatedHours: typeof actionItem.new_hours === "number" ? actionItem.new_hours : 1,
+          energyRequired: "Medium",
           startDate: new Date().toISOString().split("T")[0],
           deadline: new Date().toISOString().split("T")[0],
           intensity: actionToIntensity(actionItem.action),

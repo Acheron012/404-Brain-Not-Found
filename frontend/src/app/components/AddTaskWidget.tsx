@@ -1,13 +1,17 @@
 import React, { useState } from "react";
-import { Intensity, Task, TaskStatus } from "../types";
+import { EnergyLevel, Intensity, Task, TaskStatus } from "../types";
 
 interface AddTaskWidgetProps {
-  onAddTask: (task: Omit<Task, "id" | "scheduleCondition">) => void;
+  onAddTask: (
+    task: Omit<Task, "id" | "scheduleCondition" | "remainingTimeHours">,
+  ) => void;
 }
 
 export function AddTaskWidget({ onAddTask }: AddTaskWidgetProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [estimatedHours, setEstimatedHours] = useState("1");
+  const [energyRequired, setEnergyRequired] = useState<EnergyLevel>("Medium");
   const [startDate, setStartDate] = useState("");
   const [deadline, setDeadline] = useState("");
   const [intensity, setIntensity] = useState<Intensity>("Medium");
@@ -20,6 +24,8 @@ export function AddTaskWidget({ onAddTask }: AddTaskWidgetProps) {
     onAddTask({
       name,
       description,
+      estimatedHours: Number(estimatedHours),
+      energyRequired,
       startDate,
       deadline,
       intensity,
@@ -28,6 +34,8 @@ export function AddTaskWidget({ onAddTask }: AddTaskWidgetProps) {
 
     setName("");
     setDescription("");
+    setEstimatedHours("1");
+    setEnergyRequired("Medium");
     setStartDate("");
     setDeadline("");
     setIntensity("Medium");
@@ -64,6 +72,38 @@ export function AddTaskWidget({ onAddTask }: AddTaskWidgetProps) {
             className="bg-[#F4F7F5] border border-[#BFD8B8] text-[#2F3E34] text-sm rounded-lg focus:ring-[#7FB77E] focus:border-[#7FB77E] outline-none block w-full p-2 resize-none"
             placeholder="Details about the task..."
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-[#2F3E34] mb-1">
+              Estimated Hours
+            </label>
+            <input
+              type="number"
+              min="0.25"
+              step="0.25"
+              required
+              value={estimatedHours}
+              onChange={(e) => setEstimatedHours(e.target.value)}
+              className="bg-[#F4F7F5] border border-[#BFD8B8] text-[#2F3E34] text-sm rounded-lg focus:ring-[#7FB77E] focus:border-[#7FB77E] outline-none block w-full p-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-[#2F3E34] mb-1">
+              Energy Required
+            </label>
+            <select
+              value={energyRequired}
+              onChange={(e) => setEnergyRequired(e.target.value as EnergyLevel)}
+              className="bg-[#F4F7F5] border border-[#BFD8B8] text-[#2F3E34] text-sm rounded-lg focus:ring-[#7FB77E] focus:border-[#7FB77E] outline-none block w-full p-2"
+            >
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

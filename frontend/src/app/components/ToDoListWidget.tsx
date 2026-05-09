@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Intensity, Task, TaskStatus } from "../types";
+import { EnergyLevel, Intensity, Task, TaskStatus } from "../types";
 import {
   Check,
   Circle,
@@ -48,6 +48,12 @@ export function ToDoListWidget({
   const d = String(todayDate.getDate()).padStart(2, "0");
   const today = `${y}-${m}-${d}`;
   const todayTasks = tasks.filter((task) => task.startDate === today);
+
+  const formatRemainingTime = (hours: number) => {
+    if (hours < 0) return `${Math.abs(hours).toFixed(1)}h overdue`;
+    if (hours < 24) return `${hours.toFixed(1)}h left`;
+    return `${(hours / 24).toFixed(1)}d left`;
+  };
 
   const getIntensityColor = (intensity: string) => {
     switch (intensity) {
@@ -131,6 +137,35 @@ export function ToDoListWidget({
                     rows={2}
                     placeholder="Description"
                   />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      min="0.25"
+                      step="0.25"
+                      value={editForm.estimatedHours ?? ""}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          estimatedHours: Number(e.target.value),
+                        })
+                      }
+                      className="text-xs border border-[#BFD8B8] rounded p-1.5 bg-[#F4F7F5] text-[#2F3E34] outline-none"
+                    />
+                    <select
+                      value={editForm.energyRequired}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          energyRequired: e.target.value as EnergyLevel,
+                        })
+                      }
+                      className="text-xs border border-[#BFD8B8] rounded p-1.5 bg-[#F4F7F5] text-[#2F3E34] outline-none"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       type="date"
@@ -237,7 +272,10 @@ export function ToDoListWidget({
                       </p>
                     )}
                     <div className="mt-2 text-[11px] text-[#2F3E34]/60">
-                      Starts {task.startDate} · Due {task.deadline}
+                      Starts {task.startDate} | Due {task.deadline}
+                    </div>
+                    <div className="mt-1 text-[11px] text-[#2F3E34]/60">
+                      Est. {task.estimatedHours}h | Energy {task.energyRequired} | {formatRemainingTime(task.remainingTimeHours)}
                     </div>
                     <div className="flex items-center gap-2 mt-3">
                       <span

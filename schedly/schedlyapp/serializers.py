@@ -12,6 +12,7 @@ class UserStateSerializer(serializers.ModelSerializer):
 class TaskSerializer(serializers.ModelSerializer):
     """Serializer for Task model."""
     schedule_condition = serializers.SerializerMethodField()
+    remaining_time_hours = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -29,6 +30,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'deadline',
             'created_at',
             'schedule_condition',
+            'remaining_time_hours',
         ]
         extra_kwargs = {
             'status': {'required': True},
@@ -68,6 +70,10 @@ class TaskSerializer(serializers.ModelSerializer):
 
     def get_schedule_condition(self, obj):
         return compute_schedule_condition(obj)
+
+    def get_remaining_time_hours(self, obj):
+        remaining_seconds = (obj.deadline - timezone.now()).total_seconds()
+        return round(remaining_seconds / 3600, 2)
     
 class ScheduleRequestSerializer(serializers.ModelSerializer):
     """Serializer for ScheduleRequest model."""

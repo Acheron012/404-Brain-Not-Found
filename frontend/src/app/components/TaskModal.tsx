@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Intensity, Task, TaskStatus } from "../types";
+import { EnergyLevel, Intensity, Task, TaskStatus } from "../types";
 import { Check, Edit2, Trash2, X, XCircle } from "lucide-react";
 
 interface TaskModalProps {
@@ -30,6 +30,12 @@ export function TaskModal({
   const dateString = `${y}-${m}-${d}`;
 
   const dateTasks = tasks.filter((t) => t.startDate === dateString);
+
+  const formatRemainingTime = (hours: number) => {
+    if (hours < 0) return `${Math.abs(hours).toFixed(1)}h overdue`;
+    if (hours < 24) return `${hours.toFixed(1)}h left`;
+    return `${(hours / 24).toFixed(1)}d left`;
+  };
 
   const startEdit = (task: Task) => {
     setEditingId(task.id);
@@ -103,6 +109,35 @@ export function TaskModal({
                         rows={2}
                         placeholder="Description"
                       />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          min="0.25"
+                          step="0.25"
+                          value={editForm.estimatedHours ?? ""}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              estimatedHours: Number(e.target.value),
+                            })
+                          }
+                          className="text-xs border border-[#BFD8B8] rounded p-1.5 bg-[#F4F7F5] text-[#2F3E34] outline-none"
+                        />
+                        <select
+                          value={editForm.energyRequired}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              energyRequired: e.target.value as EnergyLevel,
+                            })
+                          }
+                          className="text-xs border border-[#BFD8B8] rounded p-1.5 bg-[#F4F7F5] text-[#2F3E34] outline-none"
+                        >
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                        </select>
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <input
                           type="date"
@@ -197,8 +232,11 @@ export function TaskModal({
                       <p className="text-sm text-[#2F3E34]/70 mb-3">
                         {task.description}
                       </p>
+                      <div className="text-[11px] text-[#2F3E34]/60 mb-1">
+                        Starts {task.startDate} | Due {task.deadline}
+                      </div>
                       <div className="text-[11px] text-[#2F3E34]/60 mb-3">
-                        Starts {task.startDate} · Due {task.deadline}
+                        Est. {task.estimatedHours}h | Energy {task.energyRequired} | {formatRemainingTime(task.remainingTimeHours)}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#BFD8B8] uppercase tracking-wider bg-[#F4F7F5] text-[#2F3E34]/80">

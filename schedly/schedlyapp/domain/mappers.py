@@ -1,7 +1,9 @@
 from .entities import TaskData, UserStateData, ScheduleStateData, ScheduleRequestData
 from schedlyapp.task_schedule import compute_schedule_condition
+from django.utils import timezone
 
 def map_task_to_data(task):
+   remaining_seconds = (task.deadline - timezone.now()).total_seconds() if task.deadline else 0
    return {
         "id": task.id,
         "user": task.user.id if task.user else None,
@@ -15,6 +17,7 @@ def map_task_to_data(task):
         "level": task.level,
         "start_date": task.start_date.isoformat() if task.start_date else None,
         "deadline": task.deadline.isoformat() if task.deadline else None,
+        "remaining_time_hours": round(remaining_seconds / 3600, 2),
         "created_at": task.created_at.isoformat() if task.created_at else None,
     }
     
