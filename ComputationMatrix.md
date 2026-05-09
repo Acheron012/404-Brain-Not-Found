@@ -45,7 +45,7 @@
 | Rule # | Condition | Risk Detected | Mutation Action | Example Reason |
 |--------|-----------|---------------|-----------------|----------------|
 | **1** | `fatigue_score > 0.7 AND action="proceed" AND energy_required="high"` | User will underperform/crash | **proceed → compress/delay** | "fatigue_score is 0.8, user lacks capacity for high-energy task" |
-| **2** | `effective_energy < 4 AND action="proceed" AND remaining_hours >= 3` | Insufficient sustained focus | **proceed → compress** | "effective_energy is 0.2, cannot maintain 3+ hour focus" |
+| **2** | `effective_energy < 0.2 AND action="proceed" AND remaining_hours >= 3` | Insufficient sustained focus | **proceed → compress** | "effective_energy is 0.2, cannot maintain 3+ hour focus" |
 | **3** | `overload_hours > 0 AND action="proceed" AND no compression in plan` | Plan ignores capacity breach | **proceed → compress** | "overload_hours is 2.5, plan doesn't address it" |
 | **4** | `constraint_signal="Workload significantly exceeds capacity" AND action="proceed"` | Ignoring hard constraint | **proceed → delay/compress** | "Constraint signal explicitly warns overload" |
 | **5** | `action="delay/drop" AND priority_level="high" AND severity="critical"` | Deferring critical task | **delay → compress** OR **drop → miss** | "Task priority is high, severity is critical—cannot drop" |
