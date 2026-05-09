@@ -1,6 +1,4 @@
 from ..models import Task, ScheduleState
-from dataclasses import asdict
-import asyncio
 from schedlyapp.domain.mappers import map_task_to_data, map_user_state_to_data, map_schedule_request_to_data
 from .compute_schedule_state import compute_schedule_state
 from .detect_constraints import detect_constraints
@@ -57,7 +55,7 @@ async def _run_async_pipeline(schedule_request):
     
     # run layer 5: decide the best plan based on simulation results and constraints
     print("\n[Pipeline] Starting Layer 5...")
-    decision = decide(state, layer3_output, layer4_output, request_data)
+    decision = decide(state, layer3_output, layer4_output, schedule_request.id)
     
     print(f"\n[Pipeline] Decision: {decision['selected_plan']} (score: {decision['score']})")
     print(f"[Pipeline] Reasoning: {decision['reasoning']}")
