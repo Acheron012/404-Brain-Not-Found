@@ -184,15 +184,19 @@ export default function Dashboard() {
       "energy_level" | "fatigue_level" | "sleep_hours"
     >,
   ) => {
-    if (!activeUserId) return;
+    if (!activeUserId) {
+      throw new Error("No active user selected.");
+    }
 
     try {
       const updated = await patchUserState(activeUserId, payload);
       setActiveUserState(updated);
       setApiError(null);
+      return updated;
     } catch (error) {
       setApiError("Could not save user state to Django API.");
       console.error(error);
+      throw error;
     }
   };
 

@@ -195,10 +195,6 @@ export function UserStatusWidget({
 
   // Save user state to Django and then show task suggestions modal.
   const handleSave = async () => {
-    setSavedHours(hours);
-    setSavedSleep(sleep);
-    setSavedFatigue(fatigue);
-    setSavedEnergy(energy);
     setShowPrompt(false);
 
     try {
@@ -207,10 +203,16 @@ export function UserStatusWidget({
         fatigue_level: sliderValueToEnum(fatigue),
         sleep_hours: Math.round(sleep),
       });
+      setSavedHours(hours);
+      setSavedSleep(sleep);
+      setSavedFatigue(fatigue);
+      setSavedEnergy(energy);
       setSaveStatus("success");
     } catch (error) {
       setSaveStatus("error");
+      setShowPrompt(true);
       console.error(error);
+      return;
     }
 
     // Open modal immediately so users can see waiting/fetching placeholders.
