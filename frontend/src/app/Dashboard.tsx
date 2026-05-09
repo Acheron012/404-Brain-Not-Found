@@ -267,7 +267,7 @@ export default function Dashboard() {
               <ProgressWidget tasks={tasks} />
             </div>
 
-            <div className="flex-1 min-h-[300px]">
+            <div className="flex-none">
               <ToDoListWidget
                 tasks={tasks}
                 onUpdateTask={handleUpdateTask}

@@ -6,6 +6,7 @@ export type ThemeId =
   | 'black'
   | 'gray'
   | 'sunset'
+  | 'sun'
   | 'ocean'
   | 'forest-night'
   | 'lavender-focus';
@@ -21,34 +22,35 @@ export interface ThemePalette {
 export const THEME_PALETTES: ThemePalette[] = [
   {
     id: 'blue',
-    label: 'Blue Serenity',
-    description: 'Softer blue tones with reduced glare.',
-    swatch: '#4F83CC',
+    label: 'Midnight Ocean',
+    description: 'Deep-water ink blues—moonlit frost text and muted teal shimmer.',
+    swatch: '#271b6d',
     vars: {
-      '--theme-bg': '#F4F8FF',
-      '--theme-panel': '#E5EEFF',
-      '--theme-surface': '#FAFCFF',
-      '--theme-border': '#C6D9FF',
-      '--theme-text': '#1F3B6E',
-      '--theme-muted': '#3E5F98',
-      '--theme-accent': '#4F83CC',
-      '--theme-accent-strong': '#3E6FB6',
+      '--theme-bg': '#0A121F',
+      '--theme-panel': '#0F1B2E',
+      '--theme-surface': '#16263C',
+      '--theme-border': '#2A4259',
+      '--theme-text': '#DCE9F3',
+      '--theme-muted': '#7FA3BC',
+      '--theme-accent': '#4BC4D4',
+      '--theme-accent-strong': '#271b6d',
     },
   },
   {
     id: 'green',
     label: 'Green Balance',
-    description: 'Fresh and calm for long sessions.',
-    swatch: '#7FB77E',
+    description:
+      'Dew-washed meadow greens—fresh growth panels and lively leaf accents.',
+    swatch: '#22C87A',
     vars: {
-      '--theme-bg': '#F4F7F5',
-      '--theme-panel': '#E3EFE6',
-      '--theme-surface': '#F4F7F5',
-      '--theme-border': '#BFD8B8',
-      '--theme-text': '#2F3E34',
-      '--theme-muted': '#4A6352',
-      '--theme-accent': '#7FB77E',
-      '--theme-accent-strong': '#5F9C5E',
+      '--theme-bg': '#EAF8F1',
+      '--theme-panel': '#D8F0E5',
+      '--theme-surface': '#F6FEF9',
+      '--theme-border': '#9DD9B8',
+      '--theme-text': '#123B2A',
+      '--theme-muted': '#2F7A54',
+      '--theme-accent': '#22C87A',
+      '--theme-accent-strong': '#16965B',
     },
   },
   {
@@ -86,17 +88,18 @@ export const THEME_PALETTES: ThemePalette[] = [
   {
     id: 'black',
     label: 'Black Dark',
-    description: 'Dark mode tuned for reduced eye strain.',
-    swatch: '#111111',
+    description:
+      'Charcoal and graphite dark mode with calm moonlit silver accents.',
+    swatch: '#121214',
     vars: {
-      '--theme-bg': '#111111',
-      '--theme-panel': '#1B1B1B',
-      '--theme-surface': '#242424',
-      '--theme-border': '#333333',
-      '--theme-text': '#E5E5E5',
-      '--theme-muted': '#B8B8B8',
-      '--theme-accent': '#8B5CF6',
-      '--theme-accent-strong': '#A78BFA',
+      '--theme-bg': '#121214',
+      '--theme-panel': '#1C1C1F',
+      '--theme-surface': '#26262A',
+      '--theme-border': '#3F3F46',
+      '--theme-text': '#ECECEF',
+      '--theme-muted': '#A1A1AA',
+      '--theme-accent': '#9CA8B8',
+      '--theme-accent-strong': '#7C8EA3',
     },
   },
   {
@@ -132,6 +135,22 @@ export const THEME_PALETTES: ThemePalette[] = [
     },
   },
   {
+    id: 'sun',
+    label: 'Sunrise',
+    description: 'Sky blue to warm peach, gold and sun-orange accents.',
+    swatch: '#F59E0B',
+    vars: {
+      '--theme-bg': '#F5FAFF',
+      '--theme-panel': '#FFF3E0',
+      '--theme-surface': '#FFFCF7',
+      '--theme-border': '#F5D5A8',
+      '--theme-text': '#5C3D2E',
+      '--theme-muted': '#8B6544',
+      '--theme-accent': '#F59E0B',
+      '--theme-accent-strong': '#EA580C',
+    },
+  },
+  {
     id: 'ocean',
     label: 'Ocean Mist',
     description: 'Aqua and cyan tones for a fresh feel.',
@@ -149,18 +168,19 @@ export const THEME_PALETTES: ThemePalette[] = [
   },
   {
     id: 'forest-night',
-    label: 'Forest Dusk',
-    description: 'Dark green low-light theme with softer contrast.',
-    swatch: '#2F6D52',
+    label: 'Deep Grove',
+    description:
+      'Living canopy dusk—jewel-toned emerald depth with bright mint-firefly accents.',
+    swatch: '#3FE699',
     vars: {
-      '--theme-bg': '#101A15',
-      '--theme-panel': '#18261F',
-      '--theme-surface': '#213229',
-      '--theme-border': '#2D473A',
-      '--theme-text': '#D9EFE3',
-      '--theme-muted': '#A9CCBB',
-      '--theme-accent': '#46A57A',
-      '--theme-accent-strong': '#5BC190',
+      '--theme-bg': '#183229',
+      '--theme-panel': '#1F3E34',
+      '--theme-surface': '#294C40',
+      '--theme-border': '#3D7A62',
+      '--theme-text': '#E9FFF4',
+      '--theme-muted': '#8FE2BA',
+      '--theme-accent': '#3FE699',
+      '--theme-accent-strong': '#1DD68A',
     },
   },
   {

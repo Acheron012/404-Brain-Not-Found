@@ -86,7 +86,7 @@ export function ToDoListWidget({
   };
 
   return (
-    <div className="bg-[#E3EFE6] p-6 rounded-xl shadow-sm border border-[#BFD8B8] h-full flex flex-col">
+    <div className="bg-[#E3EFE6] p-6 rounded-xl shadow-sm border border-[#BFD8B8] flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold text-[#2F3E34] flex items-center gap-2">
           To Do List
@@ -99,7 +99,7 @@ export function ToDoListWidget({
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+      <div className="pr-2 space-y-3">
         {todayTasks.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-[#2F3E34]/50 min-h-[150px]">
             <CircleCheck size={48} className="mb-3 opacity-20" />
