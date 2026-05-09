@@ -38,8 +38,20 @@ export interface ScheduleRequest {
 }
 
 export interface GeneratePlanResponse {
-  schedule_request: ScheduleRequest;
-  best_plan: {
+  // New response contract used by the Suggested Task List modal.
+  schedule_request?: ScheduleRequest;
+  reasoning?: string;
+  plans?: Array<{
+    plan_type: string;
+    stance: string;
+    actions: Array<{
+      task_id: number;
+      action: string;
+      new_hours?: number;
+    }>;
+  }>;
+  // Backward-compat fallback still returned by older backend implementations.
+  best_plan?: {
     selected_plan: string;
     score: number;
     metrics: Record<string, unknown>;
@@ -101,6 +113,7 @@ export const patchScheduleRequest = (
 export const deleteScheduleRequest = (id: number) =>
   apiRequest<void>(`/api/schedule-requests/${id}/`, { method: 'DELETE' });
 export const generatePlan = (payload: Omit<ScheduleRequest, 'id' | 'created_at'>) =>
+  // Expected behavior: returns recommendation plans for the modal after saving user status.
   apiRequest<GeneratePlanResponse>('/api/schedule-requests/generate_plan/', {
     method: 'POST',
     data: payload,
