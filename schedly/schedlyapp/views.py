@@ -49,26 +49,46 @@ class ScheduleRequestViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         schedule_request = serializer.save()
         
-        print("TYPE:", type(schedule_request))
-        print("DATA:", schedule_request)
-        #print("RESULT:", result)
         
         # call the pipeline
-        result = run_planning_pipeline(schedule_request=schedule_request)
+        try:
+            result = run_planning_pipeline(
+                tasks=tasks,
+                state=schedule_state,
+                constraints=constraints,
+                schedule_request_id=schedule_request.id,
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Pipeline failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         
         # store final decision
+        plan_data = result["plan_decision"]
         PlanDecision.objects.create(
             schedule_request=schedule_request,
-            selected_plan = result['selected_plan'],
-            score = result['score'],
-            metrics = result['metrics']
+            selected_plan = plan_data['selected_plan'],
+            score = plan_data['score'],
+            metrics = plan_data['metrics']
         )
         
         return Response(
             {
-            "schedule_request": ScheduleRequestSerializer(schedule_request).data,
-            "best_plan": result
+                # what the frontend shows the user
+                "schedule_request": ScheduleRequestSerializer(schedule_request).data,
+                "decision": {
+                    "id":            decision.id,
+                    "selected_plan": decision.selected_plan,
+                    "score":         decision.score,
+                    "metrics":       decision.metrics,
+                    "reasoning":     plan_data["reasoning"],
+                },
+
+                # everything teammates need locally — agents, scores, benchmark
+                # strip this out before production with DEBUG check
+                "debug": result["debug"],
             },
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         ) 
     

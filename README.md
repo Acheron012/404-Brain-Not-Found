@@ -53,3 +53,36 @@ Schedly is a Django project located in the `schedly/` folder. The app uses SQLit
 
 - The project settings module is `amdhackathon.settings`.
 - If you want to use the admin site, create a superuser with `python manage.py createsuperuser`.
+- API views are implemented in [schedly/schedlyapp/views.py](schedly/schedlyapp/views.py).
+- Serializers live in [schedly/schedlyapp/serializers.py](schedly/schedlyapp/serializers.py).
+- The local database file is `schedly/db.sqlite3` for development.
+
+## Frontend
+
+The repository includes a frontend app in the `frontend/` folder (Vite + React).
+
+Prerequisites:
+- Node.js 18+ (or a compatible LTS)
+- `npm`, `yarn`, or `pnpm`
+
+Install and run locally:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Build for production:
+
+```powershell
+cd frontend
+npm run build
+# preview the production build
+npm run preview
+```
+
+Notes:
+- The frontend's source lives in `frontend/src` and the package configuration is in `frontend/package.json`.
+- There's a Dockerfile in `frontend/` if you prefer containerized builds and previews.
+
