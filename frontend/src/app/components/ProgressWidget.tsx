@@ -15,10 +15,73 @@ interface ProgressWidgetProps {
   tasks: Task[];
 }
 
+type Timeframe = "daily" | "weekly" | "monthly";
+
+const dayLabel = new Intl.DateTimeFormat("en-US", { weekday: "short" });
+const monthLabel = new Intl.DateTimeFormat("en-US", { month: "short" });
+
+const getWeekStart = (date: Date) => {
+  const value = new Date(date);
+  const day = value.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  value.setDate(value.getDate() + diff);
+  value.setHours(0, 0, 0, 0);
+  return value;
+};
+
+const buildChartData = (tasks: Task[], timeframe: Timeframe) => {
+  const buckets = new Map<
+    string,
+    { name: string; completed: number; active: number; sortKey: number }
+  >();
+
+  tasks.forEach((task) => {
+    const date = new Date(task.startDate);
+    if (Number.isNaN(date.getTime())) return;
+
+    let key: string;
+    let name: string;
+    let sortKey: number;
+
+    if (timeframe === "daily") {
+      const bucketDate = new Date(date);
+      bucketDate.setHours(0, 0, 0, 0);
+      key = bucketDate.toISOString();
+      name = dayLabel.format(bucketDate);
+      sortKey = bucketDate.getTime();
+    } else if (timeframe === "weekly") {
+      const bucketDate = getWeekStart(date);
+      key = bucketDate.toISOString();
+      name = `Week of ${monthLabel.format(bucketDate)} ${bucketDate.getDate()}`;
+      sortKey = bucketDate.getTime();
+    } else {
+      const bucketDate = new Date(date.getFullYear(), date.getMonth(), 1);
+      key = bucketDate.toISOString();
+      name = `${monthLabel.format(bucketDate)} ${bucketDate.getFullYear()}`;
+      sortKey = bucketDate.getTime();
+    }
+
+    const current = buckets.get(key) ?? {
+      name,
+      completed: 0,
+      active: 0,
+      sortKey,
+    };
+
+    if (task.status === "finished") {
+      current.completed += 1;
+    } else {
+      current.active += 1;
+    }
+
+    buckets.set(key, current);
+  });
+
+  return [...buckets.values()].sort((a, b) => a.sortKey - b.sortKey);
+};
+
 export function ProgressWidget({ tasks }: ProgressWidgetProps) {
-  const [timeframe, setTimeframe] = useState<"daily" | "weekly" | "monthly">(
-    "weekly",
-  );
+  const [timeframe, setTimeframe] = useState<Timeframe>("weekly");
 
   // Status counters are real and derived from live task data.
   const stats = useMemo(() => {
@@ -43,36 +106,10 @@ export function ProgressWidget({ tasks }: ProgressWidgetProps) {
     return { ...counts, ...conditions };
   }, [tasks]);
 
-  // start of mock data
-  // Mock data for the chart based on timeframe
-  const chartData = useMemo(() => {
-    if (timeframe === "daily") {
-      return [
-        { name: "Mon", completed: 2, new: 3 },
-        { name: "Tue", completed: 4, new: 1 },
-        { name: "Wed", completed: 1, new: 5 },
-        { name: "Thu", completed: 5, new: 2 },
-        { name: "Fri", completed: 3, new: 3 },
-        { name: "Sat", completed: 0, new: 0 },
-        { name: "Sun", completed: 1, new: 1 },
-      ];
-    } else if (timeframe === "weekly") {
-      return [
-        { name: "Week 1", completed: 12, new: 15 },
-        { name: "Week 2", completed: 18, new: 20 },
-        { name: "Week 3", completed: 15, new: 10 },
-        { name: "Week 4", completed: 22, new: 25 },
-      ];
-    } else {
-      return [
-        { name: "Jan", completed: 45, new: 50 },
-        { name: "Feb", completed: 52, new: 60 },
-        { name: "Mar", completed: 38, new: 45 },
-        { name: "Apr", completed: 65, new: 70 },
-      ];
-    }
-  }, [timeframe]);
-  // end of mock data
+  const chartData = useMemo(
+    () => buildChartData(tasks, timeframe),
+    [tasks, timeframe],
+  );
 
   return (
     <div className="bg-[#E3EFE6] p-6 rounded-xl shadow-sm border border-[#BFD8B8] flex flex-col h-full">
@@ -90,56 +127,62 @@ export function ProgressWidget({ tasks }: ProgressWidgetProps) {
       </div>
 
       <div className="h-64 w-full mb-6">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              vertical={false}
-              stroke="#BFD8B8"
-              opacity={0.5}
-            />
-            <XAxis
-              dataKey="name"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 12, fill: "#2F3E34" }}
-              dy={10}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 12, fill: "#2F3E34" }}
-            />
-            <Tooltip
-              cursor={{ fill: "#BFD8B8", opacity: 0.2 }}
-              contentStyle={{
-                backgroundColor: "#F4F7F5",
-                borderRadius: "8px",
-                border: "1px solid #BFD8B8",
-                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                color: "#2F3E34",
-              }}
-            />
-            <Legend wrapperStyle={{ paddingTop: "20px" }} iconType="circle" />
-            <Bar
-              dataKey="completed"
-              name="Completed Tasks"
-              fill="#7FB77E"
-              radius={[4, 4, 0, 0]}
-              barSize={24}
-            />
-            <Bar
-              dataKey="new"
-              name="New Tasks"
-              fill="#BFD8B8"
-              radius={[4, 4, 0, 0]}
-              barSize={24}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+        {chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="#BFD8B8"
+                opacity={0.5}
+              />
+              <XAxis
+                dataKey="name"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#2F3E34" }}
+                dy={10}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#2F3E34" }}
+              />
+              <Tooltip
+                cursor={{ fill: "#BFD8B8", opacity: 0.2 }}
+                contentStyle={{
+                  backgroundColor: "#F4F7F5",
+                  borderRadius: "8px",
+                  border: "1px solid #BFD8B8",
+                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  color: "#2F3E34",
+                }}
+              />
+              <Legend wrapperStyle={{ paddingTop: "20px" }} iconType="circle" />
+              <Bar
+                dataKey="completed"
+                name="Completed Tasks"
+                fill="#7FB77E"
+                radius={[4, 4, 0, 0]}
+                barSize={24}
+              />
+              <Bar
+                dataKey="active"
+                name="Active Tasks"
+                fill="#BFD8B8"
+                radius={[4, 4, 0, 0]}
+                barSize={24}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-full rounded-xl border border-dashed border-[#BFD8B8] bg-[#F4F7F5] flex items-center justify-center text-sm text-[#2F3E34]/65">
+            No real task data available for progress yet.
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-auto">
