@@ -50,7 +50,7 @@ GROUNDING RULES (use these to detect real risks, not assumptions):
 1. fatigue_score > 0.7 AND action is "proceed" AND task energy_required is "high"
    → risk: user will likely underperform or crash mid-task
 
-2. effective_energy < 4 AND action is "proceed" AND remaining_hours >= 3
+2. effective_energy < 0.5 AND action is "proceed" AND remaining_hours >= 3
    → risk: insufficient energy for sustained focus
 
 3. overload_hours > 0 AND action is "proceed" AND no compression anywhere in the plan
@@ -232,7 +232,7 @@ def critique(tasks,state,constraints,agent1_output) -> dict:
     })
 
 
-    valid_task_ids = {t.id for t in tasks}
+    valid_task_ids = {t["id"] for t in tasks}
     result = _validate_critiques(result, valid_task_ids)
 
     # build the 6th pipeline output: 3 mutated plans merged from A1 + A2

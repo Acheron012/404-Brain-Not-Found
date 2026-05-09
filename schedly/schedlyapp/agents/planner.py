@@ -64,6 +64,10 @@ Before writing any plan, answer these internally:
 4. Given fatigue_score and effective_energy, what can the user realistically do?
 
 Use those answers to drive DIFFERENT decisions across the 3 plans.
+---
+GROUNDING RULE:
+Every action MUST reference an existing task_id from TASKS.
+If a task_id is not present in TASKS, it is invalid and must not appear in output.
 
 ---
 
@@ -77,6 +81,13 @@ PLAN LOGIC:
 
 The 3 plans MUST differ meaningfully. If two plans have the same action
 for the same task, ask yourself why — usually one of them is wrong.
+
+---
+TASK ID RULE (STRICT):
+- You MUST only use task_id values that exist in the input TASKS list.
+- You are NOT allowed to create new tasks.
+- You are NOT allowed to modify task_id values.
+- If a task is missing or unclear, you must skip it or mark it as "miss".
 
 ---
 

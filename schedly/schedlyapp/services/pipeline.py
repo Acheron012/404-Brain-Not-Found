@@ -1,9 +1,9 @@
 from ..models import Task, ScheduleState
+from dataclasses import asdict
+import asyncio
 from schedlyapp.domain.mappers import map_task_to_data, map_user_state_to_data, map_schedule_request_to_data
 from .compute_schedule_state import compute_schedule_state
 from .detect_constraints import detect_constraints
-
-import asyncio
 from asgiref.sync import async_to_sync, sync_to_async
 from ..agents.simulator import simulate_all
 from ..agents.decision import decide
@@ -16,19 +16,17 @@ async def _run_async_pipeline(schedule_request):
         user=schedule_request.user,
         status__in=['pending', 'delayed', 'not_yet_started', 'in_progress'],
         remaining_hours__gt=0
-    ))
+    ).select_related("user")
+    )
     
     # Map to domain data structures and convert to dicts for JSON serialization
     tasks_data = [map_task_to_data(t) for t in tasks]
-    tasks_data = [t.__dict__ for t in tasks_data]
     
     user_state = schedule_request.user
     
     user_state_data = map_user_state_to_data(user_state)
-    user_state_data = user_state_data.__dict__
     
     request_data = map_schedule_request_to_data(schedule_request)
-    request_data = request_data.__dict__
 
 
     # Layer 2: Compute Constraints
@@ -48,11 +46,11 @@ async def _run_async_pipeline(schedule_request):
     constraints = detect_constraints(state)
     
     print("\n[Pipeline] Starting Layer 3...")
-    layer3_output = await sync_to_async(run_layer3)(tasks, state, constraints)
+    layer3_output = await sync_to_async(run_layer3)(tasks_data, state, constraints)
     
     # run layer 4: simulate and evaluate all plans from layer 3 in parallel, then pick the best one
     print("\n[Pipeline] Starting Layer 4...")
-    layer4_output = await simulate_all(layer3_output, state, tasks)
+    layer4_output = await simulate_all(layer3_output, state, tasks_data)
 
     print(f"\n[Pipeline] Benchmark: {layer4_output['benchmark']}")
     print(f"[Pipeline] Math best: {layer4_output['best_plan']}")

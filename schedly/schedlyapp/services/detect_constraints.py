@@ -39,11 +39,11 @@ def detect_constraints(state) -> dict:
    else:
                stability = "stable"
 
-   constraint = {
+   constraints = {
                "overload_risk": overload_risk,
                "execution_risk": exec_risk,
                "fatigue_risk": fatigue_risk,
                "stability": stability,
    }
 
-   return constraint
+   return constraints

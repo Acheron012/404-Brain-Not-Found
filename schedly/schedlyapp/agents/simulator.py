@@ -16,7 +16,7 @@ llm = HuggingFaceEndpoint(
     model="Qwen/Qwen2-7B-Instruct:featherless-ai",
     huggingfacehub_api_token=hf_token,
     temperature=0.4,
-    max_new_tokens=300,  # interpretation only — keep it short
+    max_new_tokens=300,  
 )
 llm = ChatHuggingFace(llm=llm)
 parser = JsonOutputParser()

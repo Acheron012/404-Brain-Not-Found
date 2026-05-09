@@ -1,5 +1,5 @@
-from planner import generate
-from critic import critique
+from .planner import generate
+from .critic import critique
 
 
 
