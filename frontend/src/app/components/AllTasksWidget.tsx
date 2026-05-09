@@ -55,7 +55,7 @@ export function AllTasksWidget({ tasks }: AllTasksWidgetProps) {
                       {task.name}
                     </div>
                     <div className="text-xs text-[#2F3E34]/65 mt-1">
-                      {task.description || "No description"}
+                      {<task className="body"></task> || "No description"}
                     </div>
                   </td>
                   <td className="py-3 pr-3 text-[#2F3E34]/80">{task.startDate}</td>

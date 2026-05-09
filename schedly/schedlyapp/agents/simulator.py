@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+import numpy as np
 
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate

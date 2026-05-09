@@ -179,3 +179,21 @@ export const generatePlan = (payload: Omit<ScheduleRequest, 'id' | 'created_at'>
     method: 'POST',
     data: payload,
   });
+
+export const applyPlan = async (payload: {
+    decision_id: number | undefined;
+    approved_tasks: Array<{
+        task_id: string;
+        action: string;
+        new_hours?: number;
+        statement: string;
+    }>;
+}) => {
+    const res = await fetch("/api/schedule-requests/apply_plan/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+};

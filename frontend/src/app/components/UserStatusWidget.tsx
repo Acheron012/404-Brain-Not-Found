@@ -15,6 +15,7 @@ import {
   generatePlan,
   UserState as ApiUserState,
 } from "@/lib/endpoints";
+import { applyPlan } from "../../lib/endpoints";
 
 interface UserStatusWidgetProps {
   tasks?: Task[];
@@ -584,18 +585,26 @@ export function UserStatusWidget({
     try {
       const approved = taskReviews.filter((review) => review.changed && review.apply);
       for (const review of approved) {
-        await onUpdateTask(buildUpdatedTask(review));
-      }
+        await applyPlan({
+            decision_id: planningData.decision?.id,
+            approved_tasks: approved.map((review) => ({
+                task_id:   review.taskId,
+                action:    review.action,
+                new_hours: review.newHours,
+                statement: review.statement,
+            })),
+        });
       setShowSuggestions(false);
       setSelectedPlan(null);
       setTaskReviews([]);
       setSuggestionsError(null);
+      }
     } catch (error) {
-      setSuggestionsError("Could not apply the approved task suggestions.");
-      console.error(error);
-    }
+        console.error("apply plan error:", error);
+        setSuggestionsError("Could not apply the approved task suggestions.");
+      }
   };
-
+  
   const getEnergyIcon = () => {
     if (energy > 66)
       return <BatteryFull className="text-[#7FB77E]" size={20} />;
@@ -1542,4 +1551,4 @@ export function UserStatusWidget({
 
     </div>
   );
-}
+  }

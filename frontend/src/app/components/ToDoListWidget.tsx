@@ -267,9 +267,9 @@ export function ToDoListWidget({
                         </button>
                       </div>
                     </div>
-                    {task.description && (
+                    {task.body && (
                       <p className="text-xs text-[#2F3E34]/70 mt-1 line-clamp-2">
-                        {task.description}
+                        {task.body}
                       </p>
                     )}
                     <div className="mt-2 text-[11px] text-[#2F3E34]/60">

@@ -33,7 +33,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'remaining_time_hours',
         ]
         extra_kwargs = {
-            'status': {'required': True},
+            'status': {'required': False},
             'start_date': {'required': True},
         }
 
@@ -50,6 +50,7 @@ class TaskSerializer(serializers.ModelSerializer):
         """
         if value == "pending":
             return "not_yet_started"
+        return value
 
     def validate_start_date(self, value):
         """Validate that start_date is present and not after the deadline."""

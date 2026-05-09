@@ -66,6 +66,52 @@ class ScheduleRequestViewSet(ModelViewSet):
         if user_id is not None:
             queryset = queryset.filter(user_id=user_id)
         return queryset
+    
+    @action(detail=False, methods=["post"])
+    def apply_plan(self, request):
+        approved_tasks = request.data.get("approved_tasks", [])
+
+        if not approved_tasks:
+            return Response(
+                {"error": "No approved tasks provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        updated = []
+        errors = []
+
+        for item in approved_tasks:
+            task_id   = item.get("task_id")
+            action    = item.get("action")
+            new_hours = item.get("new_hours")
+            statement = item.get("statement", "")
+
+            try:
+                task = Task.objects.get(id=task_id)
+
+                note = f"[Plan suggestion] {statement}"
+                task.body = f"{task.body}\n{note}" if task.body else note
+                update_fields = ["body"]
+
+                if action == "compress" and new_hours is not None:
+                    task.remaining_hours = float(new_hours)  # ← was estimated_hours
+                    update_fields.append("remaining_hours")
+                elif action in ("delay", "drop", "miss"):
+                    task.status = action
+                    update_fields.append("status")
+
+                task.save(update_fields=update_fields)
+                updated.append(task_id)
+
+            except Task.DoesNotExist:
+                errors.append({"task_id": task_id, "error": "Not found"})
+            except Exception as exc:
+                errors.append({"task_id": task_id, "error": str(exc)})
+
+        status_code = (
+            status.HTTP_200_OK if updated else status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+        return Response({"updated": updated, "errors": errors}, status=status_code)
 
     @action(detail=False, methods=["post"])
     def generate_plan(self, request):
