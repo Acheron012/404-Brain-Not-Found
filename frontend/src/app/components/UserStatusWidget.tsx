@@ -15,7 +15,9 @@ import {
 } from "@/lib/endpoints";
 
 interface UserStatusWidgetProps {
-  onAddTask?: (task: Omit<Task, "id" | "status">) => Promise<void> | void;
+  onAddTask?: (
+    task: Omit<Task, "id" | "scheduleCondition">,
+  ) => Promise<void> | void;
   tasks?: Task[];
   initialUserState?: ApiUserState | null;
   onSaveUserState?: (
@@ -278,8 +280,10 @@ export function UserStatusWidget({
         onAddTask({
           name: mappedName,
           description: `Action: ${actionItem.action}${hourSuffix}`,
+          startDate: new Date().toISOString().split("T")[0],
           deadline: new Date().toISOString().split("T")[0],
           intensity: actionToIntensity(actionItem.action),
+          status: "not yet started",
         });
       });
     }

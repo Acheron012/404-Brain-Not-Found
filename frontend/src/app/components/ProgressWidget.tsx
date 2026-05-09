@@ -25,16 +25,22 @@ export function ProgressWidget({ tasks }: ProgressWidgetProps) {
     const counts = {
       finished: 0,
       pending: 0,
-      delayed: 0,
+      "in progress": 0,
       cancelled: 0,
       dropped: 0,
       missed: 0,
       "not yet started": 0,
     };
+    const conditions = {
+      delayed: 0,
+      missed: 0,
+    };
     tasks.forEach((task) => {
       counts[task.status]++;
+      if (task.scheduleCondition === "delayed") conditions.delayed++;
+      if (task.scheduleCondition === "missed") conditions.missed++;
     });
-    return counts;
+    return { ...counts, ...conditions };
   }, [tasks]);
 
   // start of mock data
@@ -139,6 +145,7 @@ export function ProgressWidget({ tasks }: ProgressWidgetProps) {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-auto">
         <StatCard label="Finished" value={stats.finished} />
         <StatCard label="Pending" value={stats.pending} />
+        <StatCard label="In Progress" value={stats["in progress"]} />
         <StatCard label="Delayed" value={stats.delayed} />
         <StatCard label="Cancelled" value={stats.cancelled} />
         <StatCard label="Dropped" value={stats.dropped} />

@@ -1,4 +1,5 @@
 from .entities import TaskData, UserStateData, ScheduleStateData, ScheduleRequestData
+from schedlyapp.task_schedule import compute_schedule_condition
 
 def map_task_to_data(task):
    return {
@@ -10,7 +11,9 @@ def map_task_to_data(task):
         "priority_level": task.priority_level,
         "energy_required": task.energy_required,
         "status": task.status,
+        "schedule_condition": compute_schedule_condition(task),
         "level": task.level,
+        "start_date": task.start_date.isoformat() if task.start_date else None,
         "deadline": task.deadline.isoformat() if task.deadline else None,
         "created_at": task.created_at.isoformat() if task.created_at else None,
     }

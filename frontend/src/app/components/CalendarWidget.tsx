@@ -11,7 +11,7 @@ interface CalendarWidgetProps {
 export function CalendarWidget({ tasks, onDateClick }: CalendarWidgetProps) {
   // Create a set of dates that have tasks
   const datesWithTasks = tasks.map(t => {
-    const [y, m, d] = t.deadline.split('-');
+    const [y, m, d] = t.startDate.split('-');
     return new Date(Number(y), Number(m) - 1, Number(d));
   });
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Task, TaskStatus } from "./types";
+import { Task, TaskStatus, TaskScheduleCondition } from "./types";
 import { Check, Palette } from "lucide-react";
 import { ProgressWidget } from "./components/ProgressWidget";
 import { UserStatusWidget } from "./components/UserStatusWidget";
@@ -37,21 +37,34 @@ const intensityToLevel = (intensity: Task["intensity"]): TaskItem["level"] => {
 
 const apiStatusToUiStatus = (status: TaskItem["status"]): TaskStatus => {
   if (status === "not_yet_started") return "not yet started";
-  return status;
+  if (status === "in_progress") return "in progress";
+  return status === "pending" ? "pending" : status;
 };
 
 const uiStatusToApiStatus = (status: TaskStatus): TaskItem["status"] => {
   if (status === "not yet started") return "not_yet_started";
+  if (status === "in progress") return "in_progress";
   return status;
+};
+
+const apiScheduleConditionToUi = (
+  condition?: TaskItem["schedule_condition"],
+): TaskScheduleCondition => {
+  if (!condition) return "upcoming";
+  if (condition === "on_track") return "on track";
+  if (condition === "early_start") return "early start";
+  return condition.replace(/_/g, " ") as TaskScheduleCondition;
 };
 
 const mapApiTaskToUiTask = (task: TaskItem): Task => ({
   id: String(task.id),
   name: task.title,
   description: task.body ?? "",
+  startDate: task.start_date.slice(0, 10),
   deadline: task.deadline.slice(0, 10),
   intensity: levelToIntensity(task.level),
   status: apiStatusToUiStatus(task.status),
+  scheduleCondition: apiScheduleConditionToUi(task.schedule_condition),
 });
 
 export default function Dashboard() {
@@ -104,7 +117,9 @@ export default function Dashboard() {
   };
 
   // Persist new tasks to Django, then sync local UI state.
-  const handleAddTask = async (newTaskData: Omit<Task, "id" | "status">) => {
+  const handleAddTask = async (
+    newTaskData: Omit<Task, "id" | "scheduleCondition">,
+  ) => {
     if (!activeUserId) return;
 
     try {
@@ -118,8 +133,9 @@ export default function Dashboard() {
           level === "easy" ? "low" : level === "hard" ? "high" : "medium",
         energy_required:
           level === "easy" ? "low" : level === "hard" ? "high" : "medium",
-        status: "not_yet_started",
+        status: uiStatusToApiStatus(newTaskData.status),
         level,
+        start_date: `${newTaskData.startDate}T00:00:00Z`,
         deadline: `${newTaskData.deadline}T23:59:59Z`,
       });
 
@@ -162,6 +178,7 @@ export default function Dashboard() {
             level === "easy" ? "low" : level === "hard" ? "high" : "medium",
           status: uiStatusToApiStatus(updatedTask.status),
           level,
+          start_date: `${updatedTask.startDate}T00:00:00Z`,
           deadline: `${updatedTask.deadline}T23:59:59Z`,
         },
         activeUserId,

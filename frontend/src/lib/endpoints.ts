@@ -19,6 +19,7 @@ export interface TaskItem {
   energy_required: 'low' | 'medium' | 'high';
   status:
     | 'pending'
+    | 'in_progress'
     | 'delayed'
     | 'finished'
     | 'dropped'
@@ -26,8 +27,18 @@ export interface TaskItem {
     | 'missed'
     | 'not_yet_started';
   level: 'easy' | 'medium' | 'hard';
+  start_date: string;
   deadline: string;
   created_at: string;
+  schedule_condition?:
+    | 'upcoming'
+    | 'on_track'
+    | 'delayed'
+    | 'missed'
+    | 'early_start'
+    | 'finished'
+    | 'cancelled'
+    | 'dropped';
 }
 
 export interface ScheduleRequest {
