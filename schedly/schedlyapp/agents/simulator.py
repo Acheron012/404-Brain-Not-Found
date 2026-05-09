@@ -55,11 +55,11 @@ def _compute_metrics(plan: dict, state: dict, tasks: list) -> dict:
     task_map = {t["id"]: t for t in tasks}
 
     fatigue_score    = float(state.get("fatigue_score", 0.1))
-    effective_energy = float(state.get("effective_energy", 5))
+    effective_energy = float(state.get("effective_energy", 0.5))
     total_task_hours = float(state.get("total_task_hours", 1))
     capacity_hours   = float(state.get("capacity_hours", 8))
 
-    energy_drain_factor = 1 - (effective_energy / 10)
+    energy_drain_factor = (1 - effective_energy)
 
     effective_hours  = 0.0
     high_energy_risk = 0
@@ -88,7 +88,7 @@ def _compute_metrics(plan: dict, state: dict, tasks: list) -> dict:
 
     # compute 4 metrics
     completion_rate = min(effective_hours / total_task_hours, 1.0) if total_task_hours > 0 else 0.0
-    fatigue_end     = min(fatigue_score + (completion_rate * energy_drain_factor), 1.0)
+    fatigue_end     = min(fatigue_score + (effective_hours * energy_drain_factor / max(capacity_hours, 1)),1.0)
     overload_delta  = (capacity_hours - effective_hours) / capacity_hours if capacity_hours > 0 else 0.0
     overload_delta  = max(min(overload_delta, 1.0), -1.0)
     stability       = 1 - (high_energy_risk / total_actions) if total_actions > 0 else 1.0
