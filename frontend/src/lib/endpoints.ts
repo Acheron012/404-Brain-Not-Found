@@ -19,6 +19,7 @@ export interface TaskItem {
   energy_required: 'low' | 'medium' | 'high';
   status:
     | 'pending'
+    | 'in_progress'
     | 'delayed'
     | 'finished'
     | 'dropped'
@@ -26,8 +27,19 @@ export interface TaskItem {
     | 'missed'
     | 'not_yet_started';
   level: 'easy' | 'medium' | 'hard';
+  start_date: string;
   deadline: string;
   created_at: string;
+  schedule_condition?:
+    | 'upcoming'
+    | 'on_track'
+    | 'delayed'
+    | 'missed'
+    | 'early_start'
+    | 'finished'
+    | 'cancelled'
+    | 'dropped';
+  remaining_time_hours?: number;
 }
 
 export interface ScheduleRequest {
@@ -38,23 +50,170 @@ export interface ScheduleRequest {
 }
 
 export interface GeneratePlanResponse {
-  // New response contract used by the Suggested Task List modal.
   schedule_request?: ScheduleRequest;
   reasoning?: string;
   plans?: Array<{
     plan_type: string;
     stance: string;
     actions: Array<{
-      task_id: number;
+      task_id: number | string;
       action: string;
       new_hours?: number;
     }>;
   }>;
-  // Backward-compat fallback still returned by older backend implementations.
   best_plan?: {
+    selected_plan?: string;
+    score?: number;
+    metrics?: Record<string, unknown>;
+    plan_decision?: {
+      selected_plan: string;
+      score: number;
+      metrics: {
+        completion: number;
+        fatigue: number;
+        overload: number;
+        stability: number;
+      };
+      reasoning: string;
+    };
+    debug?: {
+      agent1?: {
+        reasoning: string;
+        plans: Array<{
+          plan_type: string;
+          stance: string;
+          actions: Array<{
+            task_id: number | string;
+            action: string;
+            new_hours?: number;
+          }>;
+          score?: number;
+        }>;
+      };
+      agent2?: {
+        critiques: Array<{
+          plan_type: string;
+          overall_critique: string;
+          mutations: Array<{
+            task_id: number | string;
+            original_action: string;
+            mutated_action: string;
+            new_hours?: number;
+            reason: string;
+          }>;
+          unchanged: Array<number | string>;
+        }>;
+        mutated_plans: Array<{
+          plan_type: string;
+          stance: string;
+          actions: Array<{
+            task_id: number | string;
+            action: string;
+            new_hours?: number;
+          }>;
+          mutation_count?: number;
+          score?: number;
+        }>;
+      };
+      layer4?: {
+        all_simulations: Array<{
+          plan_type: string;
+          score: number;
+          metrics: {
+            completion: number;
+            fatigue: number;
+            overload: number;
+            stability: number;
+          };
+          summary: string;
+          actions: Array<{
+            task_id: number | string;
+            action: string;
+            new_hours?: number;
+          }>;
+        }>;
+        benchmark?: {
+          wall_time_seconds: number;
+          plans_simulated: number;
+        };
+        math_best?: string;
+      };
+    };
+  };
+  decision?: {
+    id: number;
     selected_plan: string;
     score: number;
-    metrics: Record<string, unknown>;
+    metrics: {
+      completion: number;
+      fatigue: number;
+      overload: number;
+      stability: number;
+    };
+    reasoning: string;
+  };
+  debug?: {
+    agent1?: {
+      reasoning: string;
+      plans: Array<{
+        plan_type: string;
+        stance: string;
+        actions: Array<{
+          task_id: number | string;
+          action: string;
+          new_hours?: number;
+        }>;
+        score?: number;
+      }>;
+    };
+    agent2?: {
+      critiques: Array<{
+        plan_type: string;
+        overall_critique: string;
+        mutations: Array<{
+          task_id: number | string;
+          original_action: string;
+          mutated_action: string;
+          new_hours?: number;
+          reason: string;
+        }>;
+        unchanged: Array<number | string>;
+      }>;
+      mutated_plans: Array<{
+        plan_type: string;
+        stance: string;
+        actions: Array<{
+          task_id: number | string;
+          action: string;
+          new_hours?: number;
+        }>;
+        mutation_count?: number;
+        score?: number;
+      }>;
+    };
+    layer4?: {
+      all_simulations: Array<{
+        plan_type: string;
+        score: number;
+        metrics: {
+          completion: number;
+          fatigue: number;
+          overload: number;
+          stability: number;
+        };
+        summary: string;
+        actions: Array<{
+          task_id: number | string;
+          action: string;
+          new_hours?: number;
+        }>;
+      }>;
+      benchmark?: {
+        wall_time_seconds: number;
+        plans_simulated: number;
+      };
+      math_best?: string;
+    };
   };
 }
 

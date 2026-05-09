@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Task, TaskStatus } from "./types";
+import { EnergyLevel, Task, TaskStatus, TaskScheduleCondition } from "./types";
 import { Check, Palette } from "lucide-react";
 import { ProgressWidget } from "./components/ProgressWidget";
 import { UserStatusWidget } from "./components/UserStatusWidget";
 import { ToDoListWidget } from "./components/ToDoListWidget";
+import { AllTasksWidget } from "./components/AllTasksWidget";
 import { CalendarWidget } from "./components/CalendarWidget";
 import { AddTaskWidget } from "./components/AddTaskWidget";
 import { TaskModal } from "./components/TaskModal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { THEME_PALETTES, ThemeId } from "./themePalettes";
 import "./theme-overrides.css";
 import {
@@ -35,23 +37,55 @@ const intensityToLevel = (intensity: Task["intensity"]): TaskItem["level"] => {
   return "medium";
 };
 
+const apiEnergyToUiEnergy = (
+  energy: TaskItem["energy_required"],
+): EnergyLevel => {
+  if (energy === "low") return "Low";
+  if (energy === "high") return "High";
+  return "Medium";
+};
+
+const uiEnergyToApiEnergy = (
+  energy: EnergyLevel,
+): TaskItem["energy_required"] => {
+  if (energy === "Low") return "low";
+  if (energy === "High") return "high";
+  return "medium";
+};
+
 const apiStatusToUiStatus = (status: TaskItem["status"]): TaskStatus => {
   if (status === "not_yet_started") return "not yet started";
-  return status;
+  if (status === "in_progress") return "in progress";
+  return status === "pending" ? "pending" : status;
 };
 
 const uiStatusToApiStatus = (status: TaskStatus): TaskItem["status"] => {
   if (status === "not yet started") return "not_yet_started";
+  if (status === "in progress") return "in_progress";
   return status;
+};
+
+const apiScheduleConditionToUi = (
+  condition?: TaskItem["schedule_condition"],
+): TaskScheduleCondition => {
+  if (!condition) return "upcoming";
+  if (condition === "on_track") return "on track";
+  if (condition === "early_start") return "early start";
+  return condition.replace(/_/g, " ") as TaskScheduleCondition;
 };
 
 const mapApiTaskToUiTask = (task: TaskItem): Task => ({
   id: String(task.id),
   name: task.title,
   description: task.body ?? "",
+  estimatedHours: task.remaining_hours,
+  energyRequired: apiEnergyToUiEnergy(task.energy_required),
+  startDate: task.start_date.slice(0, 10),
   deadline: task.deadline.slice(0, 10),
   intensity: levelToIntensity(task.level),
   status: apiStatusToUiStatus(task.status),
+  scheduleCondition: apiScheduleConditionToUi(task.schedule_condition),
+  remainingTimeHours: task.remaining_time_hours ?? 0,
 });
 
 export default function Dashboard() {
@@ -104,7 +138,9 @@ export default function Dashboard() {
   };
 
   // Persist new tasks to Django, then sync local UI state.
-  const handleAddTask = async (newTaskData: Omit<Task, "id" | "status">) => {
+  const handleAddTask = async (
+    newTaskData: Omit<Task, "id" | "scheduleCondition" | "remainingTimeHours">,
+  ) => {
     if (!activeUserId) return;
 
     try {
@@ -113,13 +149,13 @@ export default function Dashboard() {
         user: activeUserId,
         title: newTaskData.name,
         body: newTaskData.description,
-        remaining_hours: 1,
+        remaining_hours: newTaskData.estimatedHours,
         priority_level:
           level === "easy" ? "low" : level === "hard" ? "high" : "medium",
-        energy_required:
-          level === "easy" ? "low" : level === "hard" ? "high" : "medium",
-        status: "not_yet_started",
+        energy_required: uiEnergyToApiEnergy(newTaskData.energyRequired),
+        status: uiStatusToApiStatus(newTaskData.status),
         level,
+        start_date: `${newTaskData.startDate}T00:00:00Z`,
         deadline: `${newTaskData.deadline}T23:59:59Z`,
       });
 
@@ -155,13 +191,13 @@ export default function Dashboard() {
           user: activeUserId,
           title: updatedTask.name,
           body: updatedTask.description,
-          remaining_hours: 1,
+          remaining_hours: updatedTask.estimatedHours,
           priority_level:
             level === "easy" ? "low" : level === "hard" ? "high" : "medium",
-          energy_required:
-            level === "easy" ? "low" : level === "hard" ? "high" : "medium",
+          energy_required: uiEnergyToApiEnergy(updatedTask.energyRequired),
           status: uiStatusToApiStatus(updatedTask.status),
           level,
+          start_date: `${updatedTask.startDate}T00:00:00Z`,
           deadline: `${updatedTask.deadline}T23:59:59Z`,
         },
         activeUserId,
@@ -257,43 +293,62 @@ export default function Dashboard() {
           {apiError && <p className="text-sm text-red-600 mt-2">{apiError}</p>}
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            <div className="flex-none">
-              {/* Pass current tasks so suggestion actions can resolve task_id -> task name. */}
-              <UserStatusWidget
-                onAddTask={handleAddTask}
-                tasks={tasks}
-                initialUserState={activeUserState}
-                onSaveUserState={handleSaveUserState}
-              />
-            </div>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-5 flex flex-col gap-6">
+            <UserStatusWidget
+              onAddTask={handleAddTask}
+              tasks={tasks}
+              initialUserState={activeUserState}
+              onSaveUserState={handleSaveUserState}
+            />
 
-            <div className="flex-none">
-              {/* Uses the same shared tasks state as UserStatus and Calendar. */}
-              <ProgressWidget tasks={tasks} />
-            </div>
+            <AddTaskWidget onAddTask={handleAddTask} />
+          </div>
 
-            <div className="flex-none">
-              {/* Uses the same shared tasks state for synchronized list updates. */}
-              <ToDoListWidget
-                tasks={tasks}
-                onUpdateTask={handleUpdateTask}
-                onDeleteTask={handleDeleteTask}
-              />
+          <div className="xl:col-span-7">
+            <div className="h-full min-h-[640px]">
+              <CalendarWidget tasks={tasks} onDateClick={handleDateClick} />
             </div>
           </div>
 
-          {/* Right Column */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <div className="flex-none">
-              {/* Uses the same shared tasks state for synchronized calendar badges. */}
-              <CalendarWidget tasks={tasks} onDateClick={handleDateClick} />
-            </div>
+          <div className="xl:col-span-12">
+            <ProgressWidget tasks={tasks} />
+          </div>
 
-            <div className="flex-1 min-h-[400px]">
-              <AddTaskWidget onAddTask={handleAddTask} />
+          <div className="xl:col-span-12">
+            <div className="bg-[#E3EFE6] border border-[#BFD8B8] rounded-xl p-4 shadow-sm">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#2F3E34]">
+                    Task Workspace
+                  </h2>
+                  <p className="text-sm text-[#2F3E34]/70">
+                    Switch between the focused today list and the full task table.
+                  </p>
+                </div>
+                <span className="text-sm font-medium text-[#2F3E34] bg-[#BFD8B8] px-3 py-1 rounded-full w-fit">
+                  {tasks.length} tasks tracked
+                </span>
+              </div>
+
+              <Tabs defaultValue="today" className="w-full">
+                <TabsList className="w-full md:w-auto bg-[#F4F7F5] border border-[#BFD8B8]">
+                  <TabsTrigger value="today">Today View</TabsTrigger>
+                  <TabsTrigger value="all">All Tasks</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="today" className="mt-4">
+                  <ToDoListWidget
+                    tasks={tasks}
+                    onUpdateTask={handleUpdateTask}
+                    onDeleteTask={handleDeleteTask}
+                  />
+                </TabsContent>
+
+                <TabsContent value="all" className="mt-4">
+                  <AllTasksWidget tasks={tasks} />
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
         </div>

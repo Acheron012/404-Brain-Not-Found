@@ -5,7 +5,6 @@ from rest_framework.viewsets import ModelViewSet
 
 from .models import PlanDecision, ScheduleRequest, Task, UserState
 from .serializers import (
-    PlanDecisionSerializer,
     ScheduleRequestSerializer,
     TaskSerializer,
     UserStateSerializer,
@@ -105,7 +104,15 @@ class ScheduleRequestViewSet(ModelViewSet):
                     "metrics": decision.metrics,
                     "reasoning": plan_data["reasoning"],
                 },
-                "best_plan": PlanDecisionSerializer(decision).data,
+                "best_plan": {
+                    "plan_decision": {
+                        "selected_plan": decision.selected_plan,
+                        "score": decision.score,
+                        "metrics": decision.metrics,
+                        "reasoning": plan_data["reasoning"],
+                    },
+                    "debug": result["debug"],
+                },
                 "debug": result["debug"],
             },
             status=status.HTTP_201_CREATED,
