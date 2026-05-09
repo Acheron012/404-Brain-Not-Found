@@ -6,13 +6,17 @@ import {
   Frown,
   Meh,
   Smile,
-  Loader2,
 } from "lucide-react";
 import { Task, Intensity } from "../types";
-import { UserState as ApiUserState } from "@/lib/endpoints";
+import {
+  UserState as ApiUserState,
+  generatePlan,
+  GeneratePlanResponse,
+} from "@/lib/endpoints";
 
 interface UserStatusWidgetProps {
-  onAddTask?: (task: Omit<Task, "id" | "status">) => void;
+  onAddTask?: (task: Omit<Task, "id" | "status">) => Promise<void> | void;
+  tasks?: Task[];
   initialUserState?: ApiUserState | null;
   onSaveUserState?: (
     payload: Pick<
@@ -20,6 +24,23 @@ interface UserStatusWidgetProps {
       "energy_level" | "fatigue_level" | "sleep_hours"
     >,
   ) => Promise<void> | void;
+}
+
+interface SuggestedAction {
+  task_id: number;
+  action: string;
+  new_hours?: number;
+}
+
+interface SuggestedPlan {
+  plan_type: string;
+  stance: string;
+  actions: SuggestedAction[];
+}
+
+interface SuggestionsPayload {
+  reasoning: string;
+  plans: SuggestedPlan[];
 }
 
 const enumToSliderValue = (
@@ -38,6 +59,7 @@ const sliderValueToEnum = (value: number): ApiUserState["energy_level"] => {
 
 export function UserStatusWidget({
   onAddTask,
+  tasks = [],
   initialUserState,
   onSaveUserState,
 }: UserStatusWidgetProps) {
@@ -54,103 +76,72 @@ export function UserStatusWidget({
   const [showPrompt, setShowPrompt] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  // "waiting" gives immediate feedback before network starts; "fetching" is active API request.
+  const [suggestionsPhase, setSuggestionsPhase] = useState<
+    "idle" | "waiting" | "fetching"
+  >("idle");
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
-  const [selectedList, setSelectedList] = useState<any>(null);
+  const [selectedPlan, setSelectedPlan] = useState<SuggestedPlan | null>(null);
+  const [suggestionsData, setSuggestionsData] = useState<SuggestionsPayload>({
+    reasoning: "",
+    plans: [],
+  });
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
     "idle",
   );
 
-  // start of mock data
-  // Mock API data with multiple containers containing arrays of tasks
-  const mockTaskLists = [
-    {
-      id: "list-1",
-      title: "Rest & Recover",
-      description: "Light tasks for low energy",
-      tasks: [
-        {
-          name: "15-min Power Nap",
-          description: "Rest and recover some energy.",
-          intensity: "Easy" as Intensity,
-        },
-        {
-          name: "Hydrate & Stretch",
-          description: "Drink water and stretch your legs.",
-          intensity: "Easy" as Intensity,
-        },
-        {
-          name: "Inbox Zero",
-          description: "Organize your emails.",
-          intensity: "Easy" as Intensity,
-        },
-      ],
-    },
-    {
-      id: "list-2",
-      title: "Steady Pace",
-      description: "Balanced mix of tasks",
-      tasks: [
-        {
-          name: "Deep Focus Block",
-          description: "Use your current energy for a 45-min focus block.",
-          intensity: "Medium" as Intensity,
-        },
-        {
-          name: "Code Review",
-          description: "Review pending pull requests.",
-          intensity: "Medium" as Intensity,
-        },
-        {
-          name: "Update Documentation",
-          description: "Document recent changes.",
-          intensity: "Easy" as Intensity,
-        },
-        {
-          name: "Team Check-in",
-          description: "Brief sync with the team.",
-          intensity: "Easy" as Intensity,
-        },
-      ],
-    },
-    {
-      id: "list-3",
-      title: "Deep Work",
-      description: "High intensity task list",
-      tasks: [
-        {
-          name: "Feature Implementation",
-          description: "Build out the new core feature.",
-          intensity: "Hard" as Intensity,
-        },
-        {
-          name: "Architecture Review",
-          description: "Review system design.",
-          intensity: "Hard" as Intensity,
-        },
-        {
-          name: "Bug Triaging",
-          description: "Prioritize and fix critical bugs.",
-          intensity: "Medium" as Intensity,
-        },
-        {
-          name: "Client Presentation",
-          description: "Present progress to stakeholders.",
-          intensity: "Hard" as Intensity,
-        },
-        {
-          name: "Performance Optimization",
-          description: "Profile and optimize app speed.",
-          intensity: "Hard" as Intensity,
-        },
-        {
-          name: "Deploy to Staging",
-          description: "Deploy the latest release to staging.",
-          intensity: "Medium" as Intensity,
-        },
-      ],
-    },
-  ];
-  // end of mock data
+  // Accept both the new API shape (reasoning/plans) and legacy backend shape (best_plan).
+  const normalizeSuggestions = (
+    payload: GeneratePlanResponse,
+  ): SuggestionsPayload => {
+    if (payload.reasoning && Array.isArray(payload.plans)) {
+      return {
+        reasoning: payload.reasoning,
+        plans: payload.plans.map((plan) => ({
+          plan_type: plan.plan_type ?? "unknown",
+          stance: plan.stance ?? "",
+          actions: Array.isArray(plan.actions)
+            ? plan.actions.map((action) => ({
+                task_id: Number(action.task_id),
+                action: action.action,
+                new_hours: action.new_hours,
+              }))
+            : [],
+        })),
+      };
+    }
+
+    const fallbackPlan =
+      payload.best_plan?.selected_plan && payload.best_plan
+        ? [
+            {
+              plan_type: payload.best_plan.selected_plan,
+              stance: "Generated by planning pipeline.",
+              actions: [],
+            },
+          ]
+        : [];
+
+    return {
+      reasoning: "No reasoning returned by API.",
+      plans: fallbackPlan,
+    };
+  };
+
+  // Enables resolving API action.task_id into human-readable task names in the modal.
+  const taskLookup = tasks.reduce<Record<number, Task>>((acc, task) => {
+    const taskId = Number(task.id);
+    if (!Number.isNaN(taskId)) acc[taskId] = task;
+    return acc;
+  }, {});
+
+  // Creates a reasonable UI intensity when importing API plan actions as tasks.
+  const actionToIntensity = (action: string): Intensity => {
+    if (action === "drop") return "Easy";
+    if (action === "compress") return "Medium";
+    return "Hard";
+  };
 
   useEffect(() => {
     if (
@@ -222,13 +213,41 @@ export function UserStatusWidget({
       console.error(error);
     }
 
+    // Open modal immediately so users can see waiting/fetching placeholders.
     setShowSuggestions(true);
     setIsLoadingSuggestions(true);
+    setSuggestionsPhase("waiting");
+    setSuggestionsError(null);
+    setSelectedPlan(null);
 
-    // Simulate API fetch
-    setTimeout(() => {
+    try {
+      if (!initialUserState?.id) {
+        throw new Error("Missing user id for generate_plan.");
+      }
+
+      // Short staged delay so "waiting" is visible before "fetching data".
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      setSuggestionsPhase("fetching");
+
+      const planPayload = await generatePlan({
+        user: initialUserState.id,
+        available_hours: Math.max(0, Number(hours) || 0),
+      });
+
+      const normalized = normalizeSuggestions(planPayload);
+      setSuggestionsData(normalized);
+      if (normalized.plans.length === 0) {
+        setSuggestionsError("No plans were returned by the API.");
+      }
+    } catch (error) {
+      // Keep the 3 placeholder cards visible on failures instead of collapsing the layout.
+      setSuggestionsData({ reasoning: "", plans: [] });
+      setSuggestionsError("Could not load Suggested Task List from API.");
+      console.error(error);
+    } finally {
       setIsLoadingSuggestions(false);
-    }, 1500);
+      setSuggestionsPhase("idle");
+    }
   };
 
   useEffect(() => {
@@ -237,26 +256,34 @@ export function UserStatusWidget({
     return () => clearTimeout(timeoutId);
   }, [saveStatus]);
 
-  const handleSelectList = (list: any) => {
-    setSelectedList(list);
+  const handleSelectList = (plan: SuggestedPlan) => {
+    setSelectedPlan(plan);
     setShowFinalConfirm(true);
   };
 
   const handleFinalConfirm = () => {
-    if (onAddTask && selectedList) {
-      // Add all tasks from the selected container
-      selectedList.tasks.forEach((task: any) => {
+    if (onAddTask && selectedPlan) {
+      // Expected behavior: selecting a plan creates tasks that flow into the shared Dashboard state,
+      // which keeps Calendar, To-Do List, and Progress graph synchronized.
+      selectedPlan.actions.forEach((actionItem) => {
+        const mappedTask = taskLookup[actionItem.task_id];
+        const mappedName = mappedTask?.name ?? `Task #${actionItem.task_id}`;
+        const hourSuffix =
+          typeof actionItem.new_hours === "number"
+            ? ` | hrs: ${actionItem.new_hours}`
+            : "";
+
         onAddTask({
-          name: task.name,
-          description: task.description,
+          name: mappedName,
+          description: `Action: ${actionItem.action}${hourSuffix}`,
           deadline: new Date().toISOString().split("T")[0],
-          intensity: task.intensity,
+          intensity: actionToIntensity(actionItem.action),
         });
       });
     }
     setShowFinalConfirm(false);
     setShowSuggestions(false);
-    setSelectedList(null);
+    setSelectedPlan(null);
   };
 
   const handleFinalCancel = () => {
@@ -385,71 +412,111 @@ export function UserStatusWidget({
         </div>
       </div>
 
-      {/* Suggestions Modal with Containers */}
+      {/* Suggestions Modal */}
       {showSuggestions && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2F3E34]/40 backdrop-blur-sm">
-          <div className="bg-[#F4F7F5] rounded-xl shadow-xl border border-[#BFD8B8] w-full max-w-4xl overflow-hidden animate-in zoom-in-95">
+          <div className="bg-[#F4F7F5] rounded-xl shadow-xl border border-[#BFD8B8] w-full max-w-5xl overflow-hidden animate-in zoom-in-95">
             <div className="p-5 border-b border-[#BFD8B8] bg-[#E3EFE6]">
               <h3 className="text-xl font-bold text-[#2F3E34]">
-                Suggested Task Lists
+                Suggested Task List
               </h3>
-              <p className="text-sm text-[#2F3E34]/70 mt-1">
-                Based on your current energy and fatigue levels, choose a set of
-                tasks to add to your list.
+              <p className="text-sm text-[#2F3E34]/80 mt-1">
+                <span className="font-semibold">Reasoning:</span>{" "}
+                {isLoadingSuggestions
+                  ? suggestionsPhase === "waiting"
+                    ? "waiting"
+                    : "fetching data"
+                  : suggestionsData.reasoning || "No reasoning returned."}
               </p>
             </div>
 
             <div className="p-5 min-h-[300px]">
-              {isLoadingSuggestions ? (
-                <div className="flex flex-col items-center justify-center h-[250px] space-y-4 text-[#7FB77E]">
-                  <Loader2 className="animate-spin" size={40} />
-                  <p className="text-base font-medium text-[#2F3E34]">
-                    Fetching optimal tasks from API...
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  {mockTaskLists.map((list) => (
-                    <div
-                      key={list.id}
-                      className="bg-white border-2 border-[#BFD8B8] rounded-xl p-4 flex flex-col h-full hover:border-[#7FB77E] transition-all shadow-sm"
-                    >
-                      <div className="mb-4">
-                        <h4 className="text-lg font-bold text-[#2F3E34]">
-                          {list.title}
-                        </h4>
-                        <p className="text-xs text-[#2F3E34]/70 mt-1 h-8">
-                          {list.description}
-                        </p>
-                        <div className="mt-3 inline-flex items-center justify-center bg-[#E3EFE6] text-[#2F3E34] text-xs font-bold px-2.5 py-1 rounded-full border border-[#BFD8B8]">
-                          {list.tasks.length} Tasks
-                        </div>
-                      </div>
-
-                      <div className="flex-1 overflow-y-auto max-h-[160px] mb-5 space-y-2 pr-2 custom-scrollbar">
-                        {list.tasks.map((task, tIdx) => (
-                          <div
-                            key={tIdx}
-                            className="text-xs flex items-start gap-2 border-b border-[#F4F7F5] pb-2 last:border-0"
-                          >
-                            <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-[#7FB77E] shrink-0"></span>
-                            <span className="text-[#2F3E34]/80 leading-snug">
-                              {task.name}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <button
-                        onClick={() => handleSelectList(list)}
-                        className="w-full text-sm bg-[#E3EFE6] text-[#2F3E34] font-bold px-4 py-2.5 rounded-lg border border-[#BFD8B8] hover:bg-[#7FB77E] hover:text-white hover:border-[#7FB77E] transition-all mt-auto"
-                      >
-                        Choose List
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              {suggestionsError && (
+                <p className="text-sm text-red-600 mb-4">{suggestionsError}</p>
               )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* Always render three containers while loading/empty to preserve expected UI structure. */}
+                {(isLoadingSuggestions || suggestionsData.plans.length === 0
+                  ? Array.from({ length: 3 }, (_, idx) => ({
+                      plan_type: "fetching data",
+                      stance: "fetching data",
+                      actions: [] as SuggestedAction[],
+                      _placeholderId: idx,
+                    }))
+                  : suggestionsData.plans.slice(0, 3)
+                ).map((plan, pIdx) => (
+                  <div
+                    key={`${plan.plan_type}-${pIdx}`}
+                    className="bg-white border-2 border-[#BFD8B8] rounded-xl p-4 flex flex-col h-full hover:border-[#7FB77E] transition-all shadow-sm"
+                  >
+                    <div className="mb-4">
+                      <h4 className="text-lg font-bold text-[#2F3E34] lowercase">
+                        {plan.plan_type}
+                      </h4>
+                      <p className="text-xs text-[#2F3E34]/70 mt-1 h-8">
+                        stance: {plan.stance}
+                      </p>
+                      <div className="mt-3 inline-flex items-center justify-center bg-[#E3EFE6] text-[#2F3E34] text-xs font-bold px-2.5 py-1 rounded-full border border-[#BFD8B8]">
+                        no. of tasks:{" "}
+                        {isLoadingSuggestions
+                          ? "fetching data"
+                          : plan.actions.length}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto max-h-[160px] mb-5 space-y-2 pr-2 custom-scrollbar">
+                      <div className="text-xs text-[#2F3E34]/80">
+                        {"Fetching Task......"}
+                      </div>
+                      {isLoadingSuggestions ? (
+                        <>
+                          <div className="text-xs text-[#2F3E34]/80">
+                            task name - fetching data
+                          </div>
+                          <div className="text-xs text-[#2F3E34]/80">
+                            action - fetching data
+                          </div>
+                          <div className="text-xs text-[#2F3E34]/80">
+                            hrs - fetching data
+                          </div>
+                        </>
+                      ) : (
+                        plan.actions.map((actionItem, actionIdx) => {
+                          const mappedTask = taskLookup[actionItem.task_id];
+                          const taskName =
+                            mappedTask?.name ?? `task id ${actionItem.task_id}`;
+
+                          return (
+                            <div
+                              key={`${actionItem.task_id}-${actionIdx}`}
+                              className="text-xs text-[#2F3E34]/80 leading-snug border-b border-[#F4F7F5] pb-2 last:border-0"
+                            >
+                              <p>{taskName}</p>
+                              <p>action - {actionItem.action}</p>
+                              <p>
+                                hrs -{" "}
+                                {typeof actionItem.new_hours === "number"
+                                  ? actionItem.new_hours
+                                  : "n/a"}
+                              </p>
+                            </div>
+                          );
+                        })
+                      )}
+                      <div className="text-xs text-[#2F3E34]/80">{"}"}</div>
+                    </div>
+
+                    <button
+                      onClick={() => handleSelectList(plan)}
+                      disabled={isLoadingSuggestions}
+                      className="w-full text-sm bg-[#E3EFE6] text-[#2F3E34] font-bold px-4 py-2.5 rounded-lg border border-[#BFD8B8] hover:bg-[#7FB77E] hover:text-white hover:border-[#7FB77E] transition-all mt-auto disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-[#E3EFE6] disabled:hover:text-[#2F3E34] disabled:hover:border-[#BFD8B8]"
+                    >
+                      Choose
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="p-4 border-t border-[#BFD8B8] bg-[#E3EFE6] flex justify-end">
@@ -465,23 +532,21 @@ export function UserStatusWidget({
       )}
 
       {/* Final Confirm Modal */}
-      {showFinalConfirm && selectedList && (
+      {showFinalConfirm && selectedPlan && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#2F3E34]/60 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95">
             <div className="p-6 text-center">
               <h3 className="text-xl font-bold text-[#2F3E34] mb-3">
-                Confirm Task Selection
+                Confirm Plan Selection
               </h3>
               <p className="text-sm text-[#2F3E34]/80 mb-6">
-                Are you sure you want to add the{" "}
+                Are you sure you to add{" "}
                 <span className="font-bold text-[#7FB77E]">
-                  "{selectedList.title}"
+                  "{selectedPlan.plan_type}"
                 </span>{" "}
                 list containing{" "}
-                <span className="font-bold">
-                  {selectedList.tasks.length} tasks
-                </span>{" "}
-                to your To-Do List?
+                <span className="font-bold">{selectedPlan.actions.length}</span>{" "}
+                tasks as your to do list
               </p>
 
               <div className="flex gap-3 justify-center">

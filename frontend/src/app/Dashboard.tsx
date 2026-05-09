@@ -256,18 +256,22 @@ export default function Dashboard() {
           {/* Left Column */}
           <div className="lg:col-span-7 flex flex-col gap-6">
             <div className="flex-none">
+              {/* Pass current tasks so suggestion actions can resolve task_id -> task name. */}
               <UserStatusWidget
                 onAddTask={handleAddTask}
+                tasks={tasks}
                 initialUserState={activeUserState}
                 onSaveUserState={handleSaveUserState}
               />
             </div>
 
             <div className="flex-none">
+              {/* Uses the same shared tasks state as UserStatus and Calendar. */}
               <ProgressWidget tasks={tasks} />
             </div>
 
             <div className="flex-none">
+              {/* Uses the same shared tasks state for synchronized list updates. */}
               <ToDoListWidget
                 tasks={tasks}
                 onUpdateTask={handleUpdateTask}
@@ -279,6 +283,7 @@ export default function Dashboard() {
           {/* Right Column */}
           <div className="lg:col-span-5 flex flex-col gap-6">
             <div className="flex-none">
+              {/* Uses the same shared tasks state for synchronized calendar badges. */}
               <CalendarWidget tasks={tasks} onDateClick={handleDateClick} />
             </div>
 
