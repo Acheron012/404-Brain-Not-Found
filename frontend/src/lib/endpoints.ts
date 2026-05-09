@@ -49,210 +49,76 @@ export interface ScheduleRequest {
   created_at: string;
 }
 
-export interface GeneratePlanResponse {
-  schedule_request?: ScheduleRequest;
-  reasoning?: string;
-  plans?: Array<{
-    plan_type: string;
-    stance: string;
-    actions: Array<{
-      task_id: number | string;
-      action: string;
-      new_hours?: number;
-    }>;
+export interface PlanMetrics {
+  completion: number;
+  fatigue: number;
+  overload: number;
+  stability: number;
+}
+
+export interface PlanAction {
+  task_id: number | string;
+  action: string;
+  new_hours?: number;
+}
+
+export interface OriginalPlan {
+  plan_type: string;
+  stance: string;
+  score: number;
+  actions: PlanAction[];
+  mutation_count?: number;
+}
+
+export interface Agent2Critique {
+  plan_type: string;
+  overall_critique: string;
+  mutations: Array<{
+    task_id: number | string;
+    original_action: string;
+    mutated_action: string;
+    new_hours?: number;
+    reason: string;
   }>;
-  best_plan?: {
-    selected_plan?: string;
-    score?: number;
-    metrics?: Record<string, unknown>;
-    plan_decision?: {
-      selected_plan: string;
-      score: number;
-      metrics: {
-        completion: number;
-        fatigue: number;
-        overload: number;
-        stability: number;
-      };
-      reasoning: string;
-    };
-    debug?: {
-      agent1?: {
-        reasoning: string;
-        plans: Array<{
-          plan_type: string;
-          stance: string;
-          actions: Array<{
-            task_id: number | string;
-            action: string;
-            new_hours?: number;
-          }>;
-          score?: number;
-        }>;
-      };
-      agent2?: {
-        critiques: Array<{
-          plan_type: string;
-          overall_critique: string;
-          mutations: Array<{
-            task_id: number | string;
-            original_action: string;
-            mutated_action: string;
-            new_hours?: number;
-            reason: string;
-          }>;
-          unchanged: Array<number | string>;
-          task_reviews?: Array<{
-            task_id: number | string;
-            action: string;
-            new_hours?: number;
-            changed: boolean;
-            statement: string;
-          }>;
-        }>;
-        mutated_plans: Array<{
-          plan_type: string;
-          stance: string;
-          actions: Array<{
-            task_id: number | string;
-            action: string;
-            new_hours?: number;
-          }>;
-          mutation_count?: number;
-          score?: number;
-        }>;
-      };
-      layer4?: {
-        all_simulations: Array<{
-          plan_type: string;
-          score: number;
-          metrics: {
-            completion: number;
-            fatigue: number;
-            overload: number;
-            stability: number;
-          };
-          summary: string;
-          actions: Array<{
-            task_id: number | string;
-            action: string;
-            new_hours?: number;
-          }>;
-        }>;
-        benchmark?: {
-          wall_time_seconds: number;
-          plans_simulated: number;
-        };
-        math_best?: string;
-      };
-      reviews?: Record<
-        string,
-        Array<{
-          task_id: number | string;
-          task_name: string;
-          action: string;
-          new_hours?: number;
-          changed: boolean;
-          statement: string;
-        }>
-      >;
-    };
-  };
-  decision?: {
+  unchanged: Array<number | string>;
+}
+
+export interface SimulationResult {
+  plan_type: string;
+  score: number;
+  metrics: PlanMetrics;
+  summary: string;
+  actions: PlanAction[];
+}
+
+export interface GeneratePlanResponse {
+  schedule_request: ScheduleRequest;
+  decision: {
     id: number;
     selected_plan: string;
     score: number;
-    metrics: {
-      completion: number;
-      fatigue: number;
-      overload: number;
-      stability: number;
-    };
+    metrics: PlanMetrics;
     reasoning: string;
   };
-  debug?: {
-    agent1?: {
+  debug: {
+    agent1: {
       reasoning: string;
-      plans: Array<{
-        plan_type: string;
-        stance: string;
-        actions: Array<{
-          task_id: number | string;
-          action: string;
-          new_hours?: number;
-        }>;
-        score?: number;
-      }>;
+      plans: OriginalPlan[];
     };
-    agent2?: {
-      critiques: Array<{
-        plan_type: string;
-        overall_critique: string;
-        mutations: Array<{
-          task_id: number | string;
-          original_action: string;
-          mutated_action: string;
-          new_hours?: number;
-          reason: string;
-        }>;
-        unchanged: Array<number | string>;
-        task_reviews?: Array<{
-          task_id: number | string;
-          action: string;
-          new_hours?: number;
-          changed: boolean;
-          statement: string;
-        }>;
-      }>;
-      mutated_plans: Array<{
-        plan_type: string;
-        stance: string;
-        actions: Array<{
-          task_id: number | string;
-          action: string;
-          new_hours?: number;
-        }>;
-        mutation_count?: number;
-        score?: number;
-      }>;
+    agent2: {
+      critiques: Agent2Critique[];
+      mutated_plans: OriginalPlan[];
     };
-    layer4?: {
-      all_simulations: Array<{
-        plan_type: string;
-        score: number;
-        metrics: {
-          completion: number;
-          fatigue: number;
-          overload: number;
-          stability: number;
-        };
-        summary: string;
-        actions: Array<{
-          task_id: number | string;
-          action: string;
-          new_hours?: number;
-        }>;
-      }>;
-      benchmark?: {
+    layer4: {
+      all_simulations: SimulationResult[];
+      benchmark: {
         wall_time_seconds: number;
         plans_simulated: number;
       };
-      math_best?: string;
+      math_best: string;
     };
-    reviews?: Record<
-      string,
-      Array<{
-        task_id: number | string;
-        task_name: string;
-        action: string;
-        new_hours?: number;
-        changed: boolean;
-        statement: string;
-      }>
-    >;
   };
 }
-
 // Endpoint wrappers centralize URL paths and request shapes.
 // User states
 export const listUserStates = () => apiRequest<UserState[]>('/api/user-states/', { method: 'GET' });
