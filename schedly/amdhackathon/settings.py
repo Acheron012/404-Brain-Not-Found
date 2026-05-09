@@ -24,21 +24,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-mul$a=l@d&ldi5wb7rx!ev)7z_fg10t=xb!@34*mgmg2j5m72*'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-<<<<<<< HEAD
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
-
-# Frontend dev origins (needed when axios uses VITE_API_BASE_URL=http://localhost:8000 cross-origin).
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-=======
 default_allowed_hosts = "localhost,127.0.0.1,0.0.0.0,backend"
 allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS", default_allowed_hosts)
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
->>>>>>> feat/output-improvement
 
 
 # Application definition
@@ -60,7 +50,10 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
