@@ -1,5 +1,5 @@
 import json
-from testing_agent_cons import generate
+from test_layer3 import run_layer3
 
 
 def run_tests():
@@ -16,7 +16,7 @@ def run_tests():
     with open("constraint.json") as f:
         constraints = json.load(f)
         
-    result = generate(tasks, state, constraints)
+    result = run_layer3(tasks, state, constraints)
     
     print("\n==============================")
     print (f"{json.dumps(result, indent=2)}")

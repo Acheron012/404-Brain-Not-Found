@@ -1,4 +1,4 @@
-def detect_constraints(state):
+def detect_constraints(state) -> dict:
    total = state['total_task_hours']
    capacity = state['capacity_hours']
    fatigue = state['fatigue_score']

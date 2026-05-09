@@ -46,3 +46,8 @@ def map_schedule_request_to_data(schedule_request):
         created_at=schedule_request.created_at
     )
     
+def to_dict(obj):
+    if isinstance(obj, (TaskData, UserStateData, ScheduleStateData, ScheduleRequestData)):
+        return obj.__dict__
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not serializable")
+    

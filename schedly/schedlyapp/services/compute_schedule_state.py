@@ -1,4 +1,4 @@
-def compute_schedule_state(tasks, user_state, schedule_request):
+def compute_schedule_state(tasks, user_state, schedule_request) -> dict:
     """
     Compute the state of the schedule based on the tasks and their dependencies.
     This is a placeholder implementation and should be replaced with actual logic.
@@ -14,7 +14,7 @@ def compute_schedule_state(tasks, user_state, schedule_request):
         "low": 0.1,
         "medium": 0.3,
         "high": 0.5
-    }
+    }   
     
     ENERGY_MAP = {
     "low": 0.3,
