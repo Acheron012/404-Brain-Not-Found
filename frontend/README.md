@@ -1,7 +1,7 @@
 
-  # Web Application Dashboard Design
+  # Schedly
 
-  This is a code bundle for Web Application Dashboard Design. The original project is available at https://www.figma.com/design/axn6mcz6e3voOmNT3FizQr/Web-Application-Dashboard-Design.
+  This is the frontend for Schedly. It was created using React
 
   ## Running the code
 
