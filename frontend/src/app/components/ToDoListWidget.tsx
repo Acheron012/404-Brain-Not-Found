@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { Task, Intensity, TaskStatus } from "../types";
+import React, { useEffect, useState } from "react";
+import { EnergyLevel, Intensity, Task, TaskStatus } from "../types";
 import {
-  CircleCheck,
+  Check,
   Circle,
+  CircleCheck,
   Clock,
   Edit2,
   Trash2,
-  Check,
   XCircle,
 } from "lucide-react";
 
@@ -47,7 +47,13 @@ export function ToDoListWidget({
   const m = String(todayDate.getMonth() + 1).padStart(2, "0");
   const d = String(todayDate.getDate()).padStart(2, "0");
   const today = `${y}-${m}-${d}`;
-  const todayTasks = tasks.filter((task) => task.deadline === today);
+  const todayTasks = tasks.filter((task) => task.startDate === today);
+
+  const formatRemainingTime = (hours: number) => {
+    if (hours < 0) return `${Math.abs(hours).toFixed(1)}h overdue`;
+    if (hours < 24) return `${hours.toFixed(1)}h left`;
+    return `${(hours / 24).toFixed(1)}d left`;
+  };
 
   const getIntensityColor = (intensity: string) => {
     switch (intensity) {
@@ -73,7 +79,7 @@ export function ToDoListWidget({
   };
 
   const saveEdit = () => {
-    if (editingId && editForm.name) {
+    if (editingId && editForm.name && editForm.startDate && editForm.deadline) {
       onUpdateTask(editForm as Task);
       setEditingId(null);
     }
@@ -81,7 +87,11 @@ export function ToDoListWidget({
 
   const toggleTaskStatus = (task: Task) => {
     const newStatus: TaskStatus =
+<<<<<<< HEAD
       task.status === "finished" ? "in progress" : "finished";
+=======
+      task.status === "finished" ? "not yet started" : "finished";
+>>>>>>> 266c0c704aa77f8b979c6b2c9c97bbb4a689645e
     onUpdateTask({ ...task, status: newStatus });
   };
 
@@ -103,7 +113,7 @@ export function ToDoListWidget({
         {todayTasks.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-[#2F3E34]/50 min-h-[150px]">
             <CircleCheck size={48} className="mb-3 opacity-20" />
-            <p>No tasks for today. You're all caught up!</p>
+            <p>No tasks starting today. You're all caught up!</p>
           </div>
         ) : (
           todayTasks.map((task) => (
@@ -131,6 +141,53 @@ export function ToDoListWidget({
                     rows={2}
                     placeholder="Description"
                   />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      min="0.25"
+                      step="0.25"
+                      value={editForm.estimatedHours ?? ""}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          estimatedHours: Number(e.target.value),
+                        })
+                      }
+                      className="text-xs border border-[#BFD8B8] rounded p-1.5 bg-[#F4F7F5] text-[#2F3E34] outline-none"
+                    />
+                    <select
+                      value={editForm.energyRequired}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          energyRequired: e.target.value as EnergyLevel,
+                        })
+                      }
+                      className="text-xs border border-[#BFD8B8] rounded p-1.5 bg-[#F4F7F5] text-[#2F3E34] outline-none"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="date"
+                      value={editForm.startDate || ""}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, startDate: e.target.value })
+                      }
+                      className="text-xs border border-[#BFD8B8] rounded p-1.5 bg-[#F4F7F5] text-[#2F3E34] outline-none"
+                    />
+                    <input
+                      type="date"
+                      value={editForm.deadline || ""}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, deadline: e.target.value })
+                      }
+                      className="text-xs border border-[#BFD8B8] rounded p-1.5 bg-[#F4F7F5] text-[#2F3E34] outline-none"
+                    />
+                  </div>
                   <div className="flex gap-2">
                     <select
                       value={editForm.intensity}
@@ -157,11 +214,15 @@ export function ToDoListWidget({
                       className="text-xs border border-[#BFD8B8] rounded p-1.5 flex-1 bg-[#F4F7F5] text-[#2F3E34] outline-none"
                     >
                       <option value="finished">Finished</option>
+<<<<<<< HEAD
                       <option value="in progress">In progress</option>
                       <option value="delayed">Delayed</option>
+=======
+                      <option value="pending">Pending</option>
+                      <option value="in progress">In progress</option>
+>>>>>>> 266c0c704aa77f8b979c6b2c9c97bbb4a689645e
                       <option value="cancelled">Cancelled</option>
                       <option value="dropped">Dropped</option>
-                      <option value="missed">Missed</option>
                       <option value="not yet started">Not yet started</option>
                     </select>
                   </div>
@@ -219,6 +280,12 @@ export function ToDoListWidget({
                         {task.description}
                       </p>
                     )}
+                    <div className="mt-2 text-[11px] text-[#2F3E34]/60">
+                      Starts {task.startDate} | Due {task.deadline}
+                    </div>
+                    <div className="mt-1 text-[11px] text-[#2F3E34]/60">
+                      Est. {task.estimatedHours}h | Energy {task.energyRequired} | {formatRemainingTime(task.remainingTimeHours)}
+                    </div>
                     <div className="flex items-center gap-2 mt-3">
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getIntensityColor(task.intensity)}`}
@@ -228,6 +295,9 @@ export function ToDoListWidget({
                       <span className="flex items-center gap-1 text-[11px] font-medium text-[#2F3E34]/70">
                         <Clock size={12} />
                         {task.status}
+                      </span>
+                      <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                        {task.scheduleCondition}
                       </span>
                     </div>
                   </div>

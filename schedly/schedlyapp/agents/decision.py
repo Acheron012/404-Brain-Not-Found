@@ -1,22 +1,11 @@
-import os, json, dotenv
-from langchain_core.prompts import ChatPromptTemplate
+import json
+
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
+from langchain_core.prompts import ChatPromptTemplate
 from langsmith import traceable
 
-dotenv.load_dotenv()
+from ..llm import get_chat_llm
 
-hf_token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
-if not hf_token:
-    raise ValueError("Missing HUGGINGFACEHUB_API_TOKEN in environment variables")
-
-llm = HuggingFaceEndpoint(
-    model="Qwen/Qwen2-7B-Instruct:featherless-ai",
-    huggingfacehub_api_token=hf_token,
-    temperature=0.3,
-    max_new_tokens=512,
-)
-llm = ChatHuggingFace(llm=llm)
 parser = JsonOutputParser()
 
 
@@ -70,11 +59,10 @@ Return ONLY valid JSON:
 
 
 def _extract_plan_metrics(selected_plan_type: str, simulation_results: list) -> dict:
-    """Pull the metrics for the selected plan from simulation results."""
     for result in simulation_results:
         if result["plan_type"] == selected_plan_type:
             return {
-                "score":   result["score"],
+                "score": result["score"],
                 "metrics": result["metrics"],
             }
     return {"score": 0.0, "metrics": {}}
@@ -88,29 +76,26 @@ def decide(
     schedule_request_id: int,
 ) -> dict:
     """
-    Agent 3 — Final decision maker.
+    Agent 3 - Final decision maker.
     Reads all 6 simulation results and picks the optimal plan.
-
-    Args:
-        state:                schedule_state dict
-        layer3_output:        output from layer3.run_layer3()
-        layer4_output:        output from layer4_simulator.simulate_all()
-        schedule_request_id:  for building the plan_decision DB record
-
-    Returns:
-        dict matching the plan_decision table schema, ready to persist
     """
+    llm = get_chat_llm(temperature=0.3, max_tokens=512)
     chain = prompt | llm | parser
 
-    result = chain.invoke({
-        "state":              json.dumps(state, indent=2),
-        "agent1_reasoning":   layer3_output.get("agent1_reasoning", ""),
-        "agent2_critiques":   json.dumps(layer3_output.get("agent2_critiques", []), indent=2),
-        "simulation_results": json.dumps(layer4_output.get("results", []), indent=2),
-        "best_plan":          layer4_output.get("best_plan", ""),
-    })
+    result = chain.invoke(
+        {
+            "state": json.dumps(state, indent=2),
+            "agent1_reasoning": layer3_output.get("agent1_reasoning", ""),
+            "agent2_critiques": json.dumps(
+                layer3_output.get("agent2_critiques", []), indent=2
+            ),
+            "simulation_results": json.dumps(
+                layer4_output.get("results", []), indent=2
+            ),
+            "best_plan": layer4_output.get("best_plan", ""),
+        }
+    )
 
-    # enrich with actual metrics from simulation in case LLM rounds differently
     plan_data = _extract_plan_metrics(
         result.get("selected_plan", ""),
         layer4_output.get("results", []),
@@ -118,8 +103,8 @@ def decide(
 
     return {
         "schedule_request": schedule_request_id,
-        "selected_plan":    result.get("selected_plan", ""),
-        "score":            plan_data["score"],
-        "metrics":          plan_data["metrics"],
-        "reasoning":        result.get("reasoning", ""),
+        "selected_plan": result.get("selected_plan", ""),
+        "score": plan_data["score"],
+        "metrics": plan_data["metrics"],
+        "reasoning": result.get("reasoning", ""),
     }
