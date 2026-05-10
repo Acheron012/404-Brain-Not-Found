@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 from datetime import datetime, timedelta
 
-import streamlit as st
 
 API_BASE = "https://404-brain-not-found-production-6081.up.railway.app"
 
@@ -11,7 +10,6 @@ st.set_page_config(
     page_icon="🧠",
     layout="wide",
 )
-
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
