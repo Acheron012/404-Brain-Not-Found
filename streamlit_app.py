@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 import streamlit as st
 
-API_BASE = st.secrets["API_BASE"]
+API_BASE = "https://404-brain-not-found-production-6081.up.railway.app"
 
 st.set_page_config(
     page_title="Schedly — 404 Brain Not Found",
