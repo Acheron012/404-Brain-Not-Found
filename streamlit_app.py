@@ -319,11 +319,11 @@ if st.session_state.user_id and st.session_state.tasks:
     """, unsafe_allow_html=True)
 
     if st.button("🚀 Generate Plan"):
-        with st.spinner("Running multi-agent pipeline... (this takes ~10-20s)"):
+        with st.spinner("Running multi-agent pipeline... (this may take uo to 3 minutes on first run)"):
             resp = requests.post(f"{API_BASE}/api/schedule-requests/generate_plan/", json={
                 "user": st.session_state.user_id,
                 "available_hours": available_hours,
-            }, timeout=120)
+            }, timeout=300)
             if resp.status_code == 201:
                 st.session_state.plan_result = resp.json()
                 st.success("✅ Plan generated!")
